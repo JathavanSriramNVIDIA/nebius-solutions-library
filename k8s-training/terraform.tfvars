@@ -38,10 +38,10 @@ filestore_disk_size  = 10 * (1024 * 1024 * 1024 * 1024) # Set Filestore disk siz
 filestore_block_size = 4096                             # Set Filestore block size in bytes
 
 
-# KubeRay
+# KubeRay Cluster
 # for GPU isolation to work with kuberay, gpu_nodes_driverfull_image must be set 
 # to false.  This is because we enable acess to infiniband via securityContext.privileged
-enable_kuberay = false # Turn KubeRay to false, otherwise gpu capacity will be consumed by KubeRay cluster
+enable_kuberay_cluster = false # Turn KubeRay to false, otherwise gpu capacity will be consumed by KubeRay cluster
 
 #kuberay CPU worker setup
 # if you have no CPU only nodes, set these to zero
@@ -62,6 +62,10 @@ kuberay_max_gpu_replicas = 8
 #   gpus = 1
 #   memory = 150  # memory allocation in gigabytes
 # }
+
+# KubeRay Service
+# Enable to deploy KubeRay Operator with RayService CR 
+enable_kuberay_service = false
 
 # NPD nebius-gpu-health-checker helm install
 gpu_health_cheker = false
