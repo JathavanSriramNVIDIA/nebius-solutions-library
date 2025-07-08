@@ -1,27 +1,27 @@
 # SA for Loki module
 data "nebius_iam_v1_group" "loki_editors" {
-  count   = var.o11y.loki.enabled ? 1 : 0
+  count     = var.o11y.loki.enabled ? 1 : 0
   name      = "editors"
   parent_id = var.tenant_id
 }
 
 resource "nebius_iam_v1_service_account" "loki_s3_sa" {
-  count   = var.o11y.loki.enabled ? 1 : 0
+  count     = var.o11y.loki.enabled ? 1 : 0
   parent_id = var.parent_id
   name      = "loki_s3_sa-${var.cluster_id}"
 }
 
 resource "nebius_iam_v1_group_membership" "loki_sa_storage_editor" {
-  count   = var.o11y.loki.enabled ? 1 : 0
+  count     = var.o11y.loki.enabled ? 1 : 0
   parent_id = data.nebius_iam_v1_group.loki_editors[0].id
   member_id = nebius_iam_v1_service_account.loki_s3_sa[count.index].id
 }
 
 resource "nebius_iam_v2_access_key" "loki_s3_key" {
-  count   = var.o11y.loki.enabled ? 1 : 0
-  parent_id         = var.parent_id
-  name              = "loki-s3-access-key"
-  description       = "Access key for Loki module"
+  count       = var.o11y.loki.enabled ? 1 : 0
+  parent_id   = var.parent_id
+  name        = "loki-s3-access-key"
+  description = "Access key for Loki module"
   account = {
     service_account = {
       id = nebius_iam_v1_service_account.loki_s3_sa[count.index].id
