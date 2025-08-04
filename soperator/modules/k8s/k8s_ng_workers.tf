@@ -100,6 +100,10 @@ resource "nebius_mk8s_v1_node_group" "worker" {
       : null
     )
 
+    gpu_settings = var.is_driverfull == true ? {
+      drivers_preset = "cuda12"
+    } : null
+
     boot_disk = {
       type             = var.node_group_workers[count.index].boot_disk.type
       size_bytes       = provider::units::from_gib(var.node_group_workers[count.index].boot_disk.size_gibibytes)

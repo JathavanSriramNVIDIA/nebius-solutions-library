@@ -172,3 +172,9 @@ variable "node_ssh_access_users" {
   }))
   default = []
 }
+
+variable "is_driverfull" {
+  description = "Set driverfull workers nodes"
+  type        = bool
+  default     = false
+}
