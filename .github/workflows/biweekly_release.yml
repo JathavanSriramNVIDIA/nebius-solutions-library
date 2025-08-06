@@ -1,0 +1,76 @@
+name: "Biweekly build main branch release"
+
+on:
+  schedule:
+    # Runs every other Monday at 09:00 UTC
+    - cron: '0 9 * * 1' # This runs every Monday at 09:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  run-bi-weekly-task:
+    permissions:
+      contents: write  # to create GitHub release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check if it's the correct week
+        id: check_week
+        run: |
+          # Example: Determine if it's an even-numbered week of the year
+          # You can adjust this logic based on your desired starting week
+          CURRENT_WEEK=$(date +%V)
+          if (( CURRENT_WEEK % 2 == 0 )); then
+            echo "is_biweekly_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_biweekly_run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run bi-weekly tasks
+        if: steps.check_week.outputs.is_biweekly_run == 'true'
+        run: |
+          echo "This job runs bi-weekly!"
+          # Your bi-weekly tasks here
+
+      - name: Checkout repository
+        if: steps.check_week.outputs.is_biweekly_run == 'true'
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+
+      - name: Get Version
+        if: steps.check_week.outputs.is_biweekly_run == 'true'
+        id: get_version
+        run: |
+          VERSION=$(cat version.yaml)
+          echo "TAG_VERSION=v$VERSION" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        if: steps.check_week.outputs.is_biweekly_run == 'true'
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: main-${{ env.TAG_VERSION }}
+          name: Main branch ${{ env.TAG_VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Update version file
+        if: steps.check_week.outputs.is_biweekly_run == 'true'
+        run: |
+          # Example using `sed` for a simple text file
+          VERSION=$(cat version.yaml)
+          NEW_VERSION=$(echo $VERSION | awk -F. -v OFS=. 'NF==1{print ++$NF}; NF>1{if(length($NF+1)>length($NF))$(NF-1)++; $NF=sprintf("%0*d", length($NF), ($NF+1)%(10^length($NF))); print}')
+          sed -i "s/.*/${NEW_VERSION}/" version.yaml
+
+      - name: Commit and push changes
+        if: steps.check_week.outputs.is_biweekly_run == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.yaml # Replace with your version file
+          git commit -m "Update version"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
