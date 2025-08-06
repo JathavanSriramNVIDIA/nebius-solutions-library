@@ -173,8 +173,8 @@ variable "node_ssh_access_users" {
   default = []
 }
 
-variable "is_driverfull" {
-  description = "Set driverfull workers nodes"
+variable "use_preinstalled_gpu_drivers" {
+  description = "Enable preinstalled mode for worker nodes."
   type        = bool
   default     = false
 }
