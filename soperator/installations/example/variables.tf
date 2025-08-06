@@ -115,10 +115,10 @@ variable "company_name" {
 
 # region Storage
 
-variable "use_controller_pvc" {
+variable "controller_state_on_filestore" {
   description = "Whether to use PVC for controller node boot disk."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "filestore_controller_spool" {

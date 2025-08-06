@@ -487,9 +487,11 @@ resources:
                   %{~ endif ~}
                 volumes:
                   spool:
-                    volumeClaimTemplateSpec: null
                     volumeSourceName: worker-spool
-                    %{~ if slurm_cluster.use_controller_pvc ~}
+                    %{~ if slurm_cluster.controller_state_on_filestore ~}
+                    volumeSourceName: "controller-spool"
+                    volumeClaimTemplateSpec: null
+                    %{~ else ~}
                     volumeClaimTemplateSpec:
                       accessModes:
                         - ReadWriteOnce
@@ -497,8 +499,6 @@ resources:
                         requests:
                           storage: 50Gi
                       storageClassName: "compute-csi-network-ssd-ext4"
-                    %{~ else ~}
-                    volumeSourceName: "controller-spool"
                     %{~ endif ~}
                   jailSubMounts:
                     %{~ if slurm_cluster.nfs.enabled ~}

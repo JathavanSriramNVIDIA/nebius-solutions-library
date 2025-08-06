@@ -182,7 +182,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
         mount_path = submount.mount_path
       }]
 
-      use_controller_pvc = var.use_controller_pvc
+      controller_state_on_filestore = var.controller_state_on_filestore
 
       nfs = var.nfs
 
