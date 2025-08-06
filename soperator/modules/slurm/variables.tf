@@ -225,7 +225,7 @@ variable "filestores" {
 
 # region Disks
 variable "controller_state_on_filestore" {
-  description = "Whether to use PVC for controller node boot disk."
+  description = "Whether to use filestore for controller node storage (when true) or PVC (when false)."
   type        = bool
   default     = false
 }
