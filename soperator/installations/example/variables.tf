@@ -395,6 +395,12 @@ variable "k8s_version" {
   }
 }
 
+variable "use_preinstalled_gpu_drivers" {
+  description = "Enable preinstalled mode for worker nodes."
+  type        = bool
+  default     = false
+}
+
 variable "k8s_cluster_node_ssh_access_users" {
   description = "SSH user credentials for accessing k8s nodes."
   type = list(object({

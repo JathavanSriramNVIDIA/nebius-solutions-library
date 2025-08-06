@@ -170,7 +170,6 @@ slurm_operator_stable = true
 # By default, "default".
 # ---
 slurm_partition_config_type = "default"
-
 # Partition config in case of `custom` slurm_partition_config_type.
 # Each string must be started with `PartitionName`.
 # By default, empty list.
@@ -289,6 +288,9 @@ slurm_nodeset_workers = [{
     infiniband_fabric = ""
   }
 }]
+
+# Driverfull mode is used to run Slurm jobs with GPU drivers installed on the worker nodes.
+use_preinstalled_gpu_drivers = false
 
 # Configuration of Slurm Login node set.
 # ---

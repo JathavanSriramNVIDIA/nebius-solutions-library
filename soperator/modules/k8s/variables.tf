@@ -172,3 +172,9 @@ variable "node_ssh_access_users" {
   }))
   default = []
 }
+
+variable "use_preinstalled_gpu_drivers" {
+  description = "Enable preinstalled mode for worker nodes."
+  type        = bool
+  default     = false
+}

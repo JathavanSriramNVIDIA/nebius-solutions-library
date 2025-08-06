@@ -132,9 +132,10 @@ module "k8s" {
   iam_project_id = data.nebius_iam_v1_project.this.id
   vpc_subnet_id  = data.nebius_vpc_v1_subnet.this.id
 
-  k8s_version  = var.k8s_version
-  name         = local.k8s_cluster_name
-  company_name = var.company_name
+  k8s_version                  = var.k8s_version
+  name                         = local.k8s_cluster_name
+  company_name                 = var.company_name
+  use_preinstalled_gpu_drivers = var.use_preinstalled_gpu_drivers
 
   etcd_cluster_size = var.etcd_cluster_size
 
@@ -219,7 +220,7 @@ module "k8s_storage_class" {
 }
 
 module "nvidia_operator_network" {
-  count = module.k8s.gpu_involved ? 1 : 0
+  count = module.k8s.gpu_involved && !var.use_preinstalled_gpu_drivers ? 1 : 0
 
   depends_on = [
     module.k8s
@@ -236,7 +237,7 @@ module "nvidia_operator_network" {
 }
 
 module "nvidia_operator_gpu" {
-  count = module.k8s.gpu_involved ? 1 : 0
+  count = module.k8s.gpu_involved && !var.use_preinstalled_gpu_drivers ? 1 : 0
 
   depends_on = [
     module.nvidia_operator_network
