@@ -429,7 +429,20 @@ resources:
                     image: cr.eu-north1.nebius.cloud/soperator/busybox
                     volumeMounts: [{ name: jail, mountPath: /volume-mount }]
                     command: ["grep", " /volume-mount virtiofs ", "/proc/mounts"]
-
+                volumes:
+                  spool:
+                    %{~ if slurm_cluster.controller_state_on_filestore ~}
+                    volumeSourceName: "controller-spool"
+                    volumeClaimTemplateSpec: null
+                    %{~ else ~}
+                    volumeClaimTemplateSpec:
+                      accessModes:
+                        - ReadWriteOnce
+                      resources:
+                        requests:
+                          storage: 50Gi
+                      storageClassName: "compute-csi-network-ssd-ext4"
+                    %{~ endif ~}
               worker:
                 size: ${slurm_cluster.nodes.worker.size}
                 k8sNodeFilterName: ${slurm_cluster.k8s_node_filters.worker.name}
@@ -487,8 +500,8 @@ resources:
                   %{~ endif ~}
                 volumes:
                   spool:
-                    volumeClaimTemplateSpec: null
                     volumeSourceName: worker-spool
+                    volumeClaimTemplateSpec: null
                   jailSubMounts:
                     %{~ if slurm_cluster.nfs.enabled ~}
                     - mountPath: ${slurm_cluster.nfs.mount_path}

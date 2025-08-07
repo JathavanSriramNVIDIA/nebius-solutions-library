@@ -262,6 +262,7 @@ slurm_nodeset_controller = {
     block_size_kibibytes = 4
   }
 }
+controller_state_on_filestore = false
 
 # Configuration of Slurm Worker node sets.
 # There can be only one Worker node set for a while.

@@ -182,6 +182,8 @@ resource "helm_release" "soperator_fluxcd_cm" {
         mount_path = submount.mount_path
       }]
 
+      controller_state_on_filestore = var.controller_state_on_filestore
+
       nfs = var.nfs
 
       nodes = {
