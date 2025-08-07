@@ -301,6 +301,8 @@ module "slurm" {
   backups_enabled              = local.backups_enabled
   region                       = var.region
 
+  use_preinstalled_gpu_drivers  = var.use_preinstalled_gpu_drivers
+  controller_state_on_filestore = var.controller_state_on_filestore
 
   github_org              = var.github_org
   github_repository       = var.github_repository
@@ -368,12 +370,11 @@ module "slurm" {
 
   worker_sshd_config_map_ref_name = var.slurm_worker_sshd_config_map_ref_name
 
-  exporter_enabled              = var.slurm_exporter_enabled
-  rest_enabled                  = var.slurm_rest_enabled
-  accounting_enabled            = var.accounting_enabled
-  slurmdbd_config               = var.slurmdbd_config
-  slurm_accounting_config       = var.slurm_accounting_config
-  controller_state_on_filestore = var.controller_state_on_filestore
+  exporter_enabled        = var.slurm_exporter_enabled
+  rest_enabled            = var.slurm_rest_enabled
+  accounting_enabled      = var.accounting_enabled
+  slurmdbd_config         = var.slurmdbd_config
+  slurm_accounting_config = var.slurm_accounting_config
 
   filestores = {
     controller_spool = {
