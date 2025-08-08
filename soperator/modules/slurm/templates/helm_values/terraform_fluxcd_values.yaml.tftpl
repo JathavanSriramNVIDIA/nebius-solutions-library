@@ -97,6 +97,9 @@ resources:
                 spec:
                   extraArgs:
                     promscrape.maxScrapeSize: "33554432"
+                  externalLabels:
+                    iam_tenant_id: ${iam_tenant_id}
+                    iam_project_id: ${iam_project_id}
                   resources:
                     requests:
                       memory: ${resources.vm_agent.memory}

@@ -110,6 +110,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
     backups_enabled    = var.backups_enabled
     telemetry_enabled  = var.telemetry_enabled
     accounting_enabled = var.accounting_enabled
+    iam_tenant_id      = var.iam_tenant_id
     iam_project_id     = var.iam_project_id
 
     dcgm_job_mapping_enabled = var.dcgm_job_mapping_enabled
@@ -169,8 +170,8 @@ resource "helm_release" "soperator_fluxcd_cm" {
         slurm_config_type = var.slurm_partition_config_type
         slurm_raw_config  = var.slurm_partition_raw_config
       }
-      
-      use_preinstalled_gpu_drivers  = var.use_preinstalled_gpu_drivers
+
+      use_preinstalled_gpu_drivers = var.use_preinstalled_gpu_drivers
 
       slurm_worker_features     = var.slurm_worker_features
       slurm_health_check_config = var.slurm_health_check_config
