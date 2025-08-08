@@ -289,6 +289,7 @@ module "slurm" {
   source = "../../modules/slurm"
 
   region              = var.region
+  iam_tenant_id       = var.iam_tenant_id
   iam_project_id      = var.iam_project_id
   cluster_name        = var.company_name
   name                = local.slurm_cluster_name
@@ -297,7 +298,7 @@ module "slurm" {
   operator_version = var.slurm_operator_version
   operator_stable  = var.slurm_operator_stable
 
-  maintenance = var.maintenance
+  maintenance                   = var.maintenance
   use_preinstalled_gpu_drivers  = var.use_preinstalled_gpu_drivers
   controller_state_on_filestore = var.controller_state_on_filestore
 
