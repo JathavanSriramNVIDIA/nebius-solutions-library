@@ -410,6 +410,18 @@ variable "public_o11y_enabled" {
   default     = true
 }
 
+variable "soperator_notifier" {
+  description = "Configuration of the Soperator Notifier (https://github.com/nebius/soperator/tree/main/helm/soperator-notifier)."
+  type = object({
+    enabled           = bool
+    slack_webhook_url = optional(string)
+  })
+  default = {
+    enabled = false
+  }
+  nullable = false
+}
+
 variable "create_pvcs" {
   description = "Whether to create PVCs. Uses emptyDir if false."
   type        = bool

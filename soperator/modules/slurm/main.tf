@@ -128,6 +128,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
     vmstack_crds_version               = var.vmstack_crds_version
     vmlogs_version                     = var.vmlogs_version
     dcgm_job_map_dir                   = var.dcgm_job_map_dir
+    notifier                           = var.soperator_notifier
 
     name                = var.name
     cluster_name        = var.cluster_name

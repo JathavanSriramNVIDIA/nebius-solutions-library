@@ -784,6 +784,27 @@ variable "dcgm_job_mapping_enabled" {
   default     = true
 }
 
+variable "soperator_notifier" {
+  description = "Configuration of the Soperator Notifier (https://github.com/nebius/soperator/tree/main/helm/soperator-notifier)."
+  type = object({
+    enabled           = bool
+    slack_webhook_url = optional(string)
+  })
+  default = {
+    enabled = false
+  }
+  nullable = false
+
+  validation {
+    condition = (
+      var.soperator_notifier.enabled
+      ? coalesce(var.soperator_notifier.slack_webhook_url, "not_provided") != "not_provided"
+      : true
+    )
+    error_message = "Slack webhook URL must be provided if Soperator Notifier is enabled."
+  }
+}
+
 # endregion Telemetry
 
 # region Accounting

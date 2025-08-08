@@ -288,32 +288,18 @@ module "slurm" {
 
   source = "../../modules/slurm"
 
-  name                         = local.slurm_cluster_name
-  cluster_name                 = var.company_name
-  operator_version             = var.slurm_operator_version
-  operator_stable              = var.slurm_operator_stable
-  k8s_cluster_context          = module.k8s.cluster_context
-  maintenance                  = var.maintenance
-  use_default_apparmor_profile = var.use_default_apparmor_profile
-  public_o11y_enabled          = var.public_o11y_enabled
-  slurm_partition_config_type  = var.slurm_partition_config_type
-  slurm_partition_raw_config   = var.slurm_partition_raw_config
-  slurm_worker_features        = var.slurm_worker_features
-  slurm_health_check_config    = var.slurm_health_check_config
-  flux_namespace               = local.flux_namespace
-  backups_enabled              = local.backups_enabled
-  region                       = var.region
+  region              = var.region
+  iam_project_id      = var.iam_project_id
+  cluster_name        = var.company_name
+  name                = local.slurm_cluster_name
+  k8s_cluster_context = module.k8s.cluster_context
 
+  operator_version = var.slurm_operator_version
+  operator_stable  = var.slurm_operator_stable
+
+  maintenance = var.maintenance
   use_preinstalled_gpu_drivers  = var.use_preinstalled_gpu_drivers
   controller_state_on_filestore = var.controller_state_on_filestore
-
-  github_org              = var.github_org
-  github_repository       = var.github_repository
-  github_branch           = var.slurm_operator_stable ? "main" : "dev"
-  flux_interval           = var.flux_interval
-  flux_kustomization_path = var.slurm_operator_stable ? "fluxcd/environment/nebius-cloud/prod" : "fluxcd/environment/nebius-cloud/dev"
-
-  iam_project_id = var.iam_project_id
 
   node_count = {
     controller = var.slurm_nodeset_controller.size
@@ -367,18 +353,6 @@ module "slurm" {
     } : null
   }
 
-  login_allocation_id            = module.k8s.static_ip_allocation_id
-  login_sshd_config_map_ref_name = var.slurm_login_sshd_config_map_ref_name
-  login_ssh_root_public_keys     = var.slurm_login_ssh_root_public_keys
-
-  worker_sshd_config_map_ref_name = var.slurm_worker_sshd_config_map_ref_name
-
-  exporter_enabled        = var.slurm_exporter_enabled
-  rest_enabled            = var.slurm_rest_enabled
-  accounting_enabled      = var.accounting_enabled
-  slurmdbd_config         = var.slurmdbd_config
-  slurm_accounting_config = var.slurm_accounting_config
-
   filestores = {
     controller_spool = {
       size_gibibytes = module.filestore.controller_spool.size_gibibytes
@@ -423,9 +397,35 @@ module "slurm" {
     mount_path = var.nfs.enabled ? var.nfs.mount_path : null
   }
 
-  shared_memory_size_gibibytes = var.slurm_shared_memory_size_gibibytes
+  exporter_enabled    = var.slurm_exporter_enabled
+  rest_enabled        = var.slurm_rest_enabled
+  accounting_enabled  = var.accounting_enabled
+  backups_enabled     = local.backups_enabled
+  telemetry_enabled   = var.telemetry_enabled
+  public_o11y_enabled = var.public_o11y_enabled
+  soperator_notifier  = var.soperator_notifier
 
-  telemetry_enabled = var.telemetry_enabled
+  slurmdbd_config         = var.slurmdbd_config
+  slurm_accounting_config = var.slurm_accounting_config
+
+  use_default_apparmor_profile    = var.use_default_apparmor_profile
+  worker_sshd_config_map_ref_name = var.slurm_worker_sshd_config_map_ref_name
+  shared_memory_size_gibibytes    = var.slurm_shared_memory_size_gibibytes
+  slurm_partition_config_type     = var.slurm_partition_config_type
+  slurm_partition_raw_config      = var.slurm_partition_raw_config
+  slurm_worker_features           = var.slurm_worker_features
+  slurm_health_check_config       = var.slurm_health_check_config
+
+  login_allocation_id            = module.k8s.static_ip_allocation_id
+  login_sshd_config_map_ref_name = var.slurm_login_sshd_config_map_ref_name
+  login_ssh_root_public_keys     = var.slurm_login_ssh_root_public_keys
+
+  github_org              = var.github_org
+  github_repository       = var.github_repository
+  github_branch           = var.slurm_operator_stable ? "main" : "dev"
+  flux_namespace          = local.flux_namespace
+  flux_interval           = var.flux_interval
+  flux_kustomization_path = var.slurm_operator_stable ? "fluxcd/environment/nebius-cloud/prod" : "fluxcd/environment/nebius-cloud/dev"
 
   providers = {
     helm = helm
