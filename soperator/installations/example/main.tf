@@ -191,32 +191,35 @@ module "k8s" {
 }
 
 module "k8s_storage_class" {
-  count = (
-    (
-      length(var.node_local_jail_submounts) > 0 ||
-      var.node_local_image_disk.enabled
-    )
-    ? 1
-    : 0
-  )
-
   depends_on = [
     module.k8s,
   ]
 
   source = "../../modules/k8s/storage_class"
 
-  storage_class_requirements = concat([for sm in var.node_local_jail_submounts : {
-    disk_type       = sm.disk_type
-    filesystem_type = sm.filesystem_type
-    }], !var.node_local_image_disk.enabled ? [] : [{
-    disk_type       = var.node_local_image_disk.spec.disk_type
-    filesystem_type = var.node_local_image_disk.spec.filesystem_type
-  }])
+  storage_class_requirements = concat(
+    [{
+      disk_type       = module.resources.disk_types.network_ssd
+      filesystem_type = module.resources.filesystem_types.ext4
+    }],
+    [for sm in var.node_local_jail_submounts : {
+      disk_type       = sm.disk_type
+      filesystem_type = sm.filesystem_type
+    }],
+    !var.node_local_image_disk.enabled ? [] : [{
+      disk_type       = var.node_local_image_disk.spec.disk_type
+      filesystem_type = var.node_local_image_disk.spec.filesystem_type
+    }]
+  )
 
   providers = {
     kubernetes = kubernetes
   }
+}
+
+moved {
+  from = module.k8s_storage_class[0]
+  to   = module.k8s_storage_class
 }
 
 module "nvidia_operator_network" {
