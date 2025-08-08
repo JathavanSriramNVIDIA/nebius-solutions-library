@@ -784,3 +784,11 @@ resources:
                   cpu: ${resources.node_configurator.requests.cpu * 1000}m
                 limits:
                   memory: ${resources.node_configurator.limits.memory}Gi
+
+        notifier:
+          enabled: ${notifier.enabled}
+          %{~ if notifier.enabled ~}
+          values:
+            slack:
+              webhookUrl: "${notifier.slack_webhook_url}"
+          %{~ endif ~}

@@ -381,6 +381,16 @@ telemetry_enabled = true
 # ---
 dcgm_job_mapping_enabled = true
 
+# Configuration of the Soperator Notifier (https://github.com/nebius/soperator/tree/main/helm/soperator-notifier).
+# ---
+# soperator_notifier = {
+#   enabled           = true
+#   slack_webhook_url = "https://hooks.slack.com/services/X/Y/Z"
+# }
+soperator_notifier = {
+  enabled = false
+}
+
 public_o11y_enabled = true
 
 # endregion Telemetry
