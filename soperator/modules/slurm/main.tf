@@ -168,6 +168,8 @@ resource "helm_release" "soperator_fluxcd_cm" {
         slurm_config_type = var.slurm_partition_config_type
         slurm_raw_config  = var.slurm_partition_raw_config
       }
+      
+      use_preinstalled_gpu_drivers  = var.use_preinstalled_gpu_drivers
 
       slurm_worker_features     = var.slurm_worker_features
       slurm_health_check_config = var.slurm_health_check_config

@@ -640,3 +640,9 @@ variable "region" {
   type        = string
   default     = "eu-north1"
 }
+
+variable "use_preinstalled_gpu_drivers" {
+  description = "Whether to use preinstalled GPU drivers."
+  type        = bool
+  default     = false
+}

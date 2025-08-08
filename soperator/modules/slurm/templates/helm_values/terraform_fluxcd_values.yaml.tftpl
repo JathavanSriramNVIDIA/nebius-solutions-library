@@ -338,6 +338,13 @@ resources:
                   path: /sys
                   type: Directory
 
+              %{~ if slurm_cluster.use_preinstalled_gpu_drivers~}
+              - hostPath:
+                  path: /
+                  type: ""
+                name: nvidia-driver-root
+              %{~ endif ~}
+
               %{~ if slurm_cluster.node_local_image_storage.enabled ~}
               - name: image-storage
                 configMap:
@@ -500,8 +507,8 @@ resources:
                   %{~ endif ~}
                 volumes:
                   spool:
-                    volumeSourceName: worker-spool
                     volumeClaimTemplateSpec: null
+                    volumeSourceName: worker-spool
                   jailSubMounts:
                     %{~ if slurm_cluster.nfs.enabled ~}
                     - mountPath: ${slurm_cluster.nfs.mount_path}
@@ -556,6 +563,12 @@ resources:
                     - name: hpc-jobs-dir
                       mountPath: ${dcgm_job_map_dir}
                       volumeSourceName: hpc-jobs-dir
+                    %{~ endif ~}
+                    %{~ if slurm_cluster.use_preinstalled_gpu_drivers~}
+                    - name: nvidia-driver-root
+                      mountPath: /run/nvidia/driver
+                      volumeSourceName: nvidia-driver-root
+                      readOnly: false
                     %{~ endif ~}
                   sharedMemorySize: ${slurm_cluster.nodes.worker.shared_memory}Gi
 
