@@ -177,6 +177,12 @@ locals {
   var.filestore_jail.spec.size_gibibytes)
 }
 
+variable "allow_empty_jail_submounts" {
+  description = "Flag for disabling validation for non-empty jail submounts."
+  type        = bool
+  default     = false
+}
+
 variable "filestore_jail_submounts" {
   description = "Shared filesystems to be mounted inside jail."
   type = list(object({
@@ -199,6 +205,11 @@ variable "filestore_jail_submounts" {
       (sm.existing == null && sm.spec != null)
     ]) == length(var.filestore_jail_submounts)
     error_message = "All submounts must have one of `existing` or `spec` provided."
+  }
+
+  validation {
+    condition     = var.allow_empty_jail_submounts || length(var.filestore_jail_submounts) >= 1
+    error_message = "Creating clusters without jail submounts is not allowed."
   }
 }
 
