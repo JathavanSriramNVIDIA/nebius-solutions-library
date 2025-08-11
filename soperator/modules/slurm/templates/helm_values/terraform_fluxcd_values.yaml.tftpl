@@ -368,6 +368,11 @@ resources:
             slurmConfig:
               defMemPerNode: ${floor(slurm_cluster.nodes.worker.resources.memory * 1024)}
 
+            periodicChecks:
+              ncclBenchmark:
+                enabled: false
+                k8sNodeFilterName: system
+
             slurmNodes:
               accounting:
                 enabled: ${accounting_enabled}
