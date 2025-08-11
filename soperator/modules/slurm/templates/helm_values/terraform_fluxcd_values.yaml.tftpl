@@ -366,7 +366,8 @@ resources:
               k8sNodeFilterName: ${slurm_cluster.k8s_node_filters.system.name}
 
             slurmConfig:
-              defMemPerNode: ${floor(slurm_cluster.nodes.worker.resources.memory * 1024)}
+              # Allocate half of the available memory by default
+              defMemPerNode: ${floor(slurm_cluster.nodes.worker.resources.memory * 1024 / 2)}
 
             periodicChecks:
               ncclBenchmark:
