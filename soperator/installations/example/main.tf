@@ -4,7 +4,7 @@ locals {
     controller = module.resources.by_platform[var.slurm_nodeset_controller.resource.platform][var.slurm_nodeset_controller.resource.preset]
     workers    = [for worker in var.slurm_nodeset_workers : module.resources.by_platform[worker.resource.platform][worker.resource.preset]]
     login      = module.resources.by_platform[var.slurm_nodeset_login.resource.platform][var.slurm_nodeset_login.resource.preset]
-    accounting = var.slurm_nodeset_accounting != null ? module.resources.by_platform[var.slurm_nodeset_accounting.resource.platform][var.slurm_nodeset_accounting.resource.preset] : null
+    accounting = module.resources.by_platform[var.slurm_nodeset_accounting.resource.platform][var.slurm_nodeset_accounting.resource.preset]
   }
 
   slurm_cluster_name = "soperator"
@@ -18,7 +18,6 @@ locals {
 resource "terraform_data" "check_variables" {
   depends_on = [
     terraform_data.check_slurm_nodeset,
-    terraform_data.check_slurm_nodeset_accounting,
     terraform_data.check_nfs,
   ]
 }
@@ -45,7 +44,7 @@ module "filestore" {
     } : null
   }
 
-  accounting = var.accounting_enabled ? {
+  accounting = {
     spec = var.filestore_accounting.spec != null ? {
       disk_type            = "NETWORK_SSD"
       size_gibibytes       = var.filestore_accounting.spec.size_gibibytes
@@ -54,7 +53,7 @@ module "filestore" {
     existing = var.filestore_accounting.existing != null ? {
       id = var.filestore_accounting.existing.id
     } : null
-  } : null
+  }
 
   jail = {
     spec = var.filestore_jail.spec != null ? {
@@ -123,7 +122,6 @@ module "k8s" {
     module.filestore,
     module.nfs-server,
     module.cleanup,
-    terraform_data.check_slurm_nodeset_accounting,
     terraform_data.check_slurm_nodeset,
   ]
 
@@ -158,10 +156,7 @@ module "k8s" {
     ]
   ])
   node_group_login = var.slurm_nodeset_login
-  node_group_accounting = {
-    enabled = var.accounting_enabled
-    spec    = var.slurm_nodeset_accounting
-  }
+  node_group_accounting = var.slurm_nodeset_accounting
 
   filestores = {
     controller_spool = {
@@ -176,10 +171,10 @@ module "k8s" {
       id        = submount.id
       mount_tag = submount.mount_tag
     }]
-    accounting = var.accounting_enabled ? {
+    accounting = {
       id        = module.filestore.accounting.id
       mount_tag = module.filestore.accounting.mount_tag
-    } : null
+    }
   }
 
   node_ssh_access_users = var.k8s_cluster_node_ssh_access_users
@@ -344,14 +339,14 @@ module "slurm" {
         -module.resources.k8s_ephemeral_storage_reserve.gibibytes
       )
     }
-    accounting = var.accounting_enabled ? {
+    accounting = {
       cpu_cores        = local.resources.accounting.cpu_cores
       memory_gibibytes = floor(local.resources.accounting.memory_gibibytes)
       ephemeral_storage_gibibytes = floor(
         var.slurm_nodeset_accounting.boot_disk.size_gibibytes * module.resources.k8s_ephemeral_storage_coefficient
         -module.resources.k8s_ephemeral_storage_reserve.gibibytes
       )
-    } : null
+    }
   }
 
   filestores = {
@@ -369,10 +364,10 @@ module "slurm" {
       device         = module.filestore.jail_submounts[submount.name].mount_tag
       mount_path     = submount.mount_path
     }]
-    accounting = var.accounting_enabled ? {
+    accounting = {
       size_gibibytes = module.filestore.accounting.size_gibibytes
       device         = module.filestore.accounting.mount_tag
-    } : null
+    }
   }
   node_local_jail_submounts = [for sm in var.node_local_jail_submounts : {
     name               = sm.name
@@ -400,7 +395,6 @@ module "slurm" {
 
   exporter_enabled    = var.slurm_exporter_enabled
   rest_enabled        = var.slurm_rest_enabled
-  accounting_enabled  = var.accounting_enabled
   backups_enabled     = local.backups_enabled
   telemetry_enabled   = var.telemetry_enabled
   public_o11y_enabled = var.public_o11y_enabled

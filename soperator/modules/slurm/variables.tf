@@ -131,7 +131,7 @@ variable "resources" {
   # TODO: remove when node sets are supported
   validation {
     condition     = length(var.resources.worker) == 1
-    error_message = "Only one worker node is supported."
+    error_message = "Only one worker nodeset is supported."
   }
 }
 
@@ -321,18 +321,6 @@ variable "dcgm_job_map_dir" {
 # endregion Telemetry
 
 # region Accounting
-
-variable "mariadb_operator_namespace" {
-  description = "Namespace for MariaDB operator."
-  type        = string
-  default     = "mariadb-operator-system"
-}
-
-variable "accounting_enabled" {
-  description = "Whether to enable accounting."
-  type        = bool
-  default     = true
-}
 
 variable "use_protected_secret" {
   description = "If true, protected user secret MariaDB will not be deleted after the MariaDB CR is deleted."

@@ -25,7 +25,12 @@ company_name = ""
 #----------------------------------------------------------------------------------------------------------------------#
 # region Storage
 
+# Whether to store the controller state on filestore or network SSD.
+controller_state_on_filestore = false
+
 # Shared filesystem to be used on controller nodes.
+# Deprecated: Starting with version 1.22, this variable isn't used, as controller state is stored on network SSD disks.
+# Remains for the backward compatibility.
 # ---
 filestore_controller_spool = {
   spec = {
@@ -59,7 +64,7 @@ filestore_jail = {
   }
 }
 
-# Additional (Optional) shared filesystems to be mounted inside jail.
+# Additional shared filesystems to be mounted inside jail.
 # If a big filesystem is needed it's better to deploy this additional storage because jails bigger than 12 TiB
 # ARE NOT BACKED UP by default.
 # ---
@@ -115,8 +120,6 @@ node_local_image_disk = {
 }
 
 # Shared filesystem to be used for accounting DB.
-# By default, null.
-# Required if accounting_enabled is true.
 # ---
 filestore_accounting = {
   spec = {
@@ -262,7 +265,6 @@ slurm_nodeset_controller = {
     block_size_kibibytes = 4
   }
 }
-controller_state_on_filestore = false
 
 # Configuration of Slurm Worker node sets.
 # There can be only one Worker node set for a while.
@@ -394,20 +396,6 @@ soperator_notifier = {
 public_o11y_enabled = true
 
 # endregion Telemetry
-
-#----------------------------------------------------------------------------------------------------------------------#
-#                                                                                                                      #
-#                                                       Accounting                                                     #
-#                                                                                                                      #
-#----------------------------------------------------------------------------------------------------------------------#
-# region Accounting
-
-# Whether to enable Accounting.
-# By default, true.
-# ---
-accounting_enabled = true
-
-# endregion Accounting
 
 # endregion Slurm
 

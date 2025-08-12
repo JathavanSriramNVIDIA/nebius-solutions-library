@@ -109,7 +109,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
   values = [templatefile("${path.module}/templates/helm_values/terraform_fluxcd_values.yaml.tftpl", {
     backups_enabled    = var.backups_enabled
     telemetry_enabled  = var.telemetry_enabled
-    accounting_enabled = var.accounting_enabled
+    accounting_enabled = true
     iam_tenant_id      = var.iam_tenant_id
     iam_project_id     = var.iam_project_id
 
@@ -155,11 +155,11 @@ resource "helm_release" "soperator_fluxcd_cm" {
           size   = "${submount.size_gibibytes}Gi"
           device = submount.device
         }]
-        accounting = var.accounting_enabled ? {
+        accounting = {
           enabled = true
           size    = "${var.filestores.accounting.size_gibibytes}Gi"
           device  = var.filestores.accounting.device
-        } : { enabled = false }
+        }
       }
     }
 
@@ -192,21 +192,21 @@ resource "helm_release" "soperator_fluxcd_cm" {
 
       nodes = {
         accounting = {
-          enabled              = var.accounting_enabled
+          enabled              = true
           use_protected_secret = var.use_protected_secret
-          mariadb_operator = var.accounting_enabled ? {
-            enabled         = var.accounting_enabled
-            storage_size    = var.accounting_enabled ? var.filestores.accounting.size_gibibytes : 0
+          mariadb_operator = {
+            enabled         = true
+            storage_size    = var.filestores.accounting.size_gibibytes
             metrics_enabled = var.telemetry_enabled
             resources       = local.resources.mariadb
-          } : null
+          }
           slurmdbd_config = var.slurmdbd_config
           slurm_config    = var.slurm_accounting_config
-          resources = var.accounting_enabled ? {
+          resources = {
             cpu               = var.resources.accounting.cpu_cores - local.resources.munge.cpu - local.resources.mariadb.cpu
             memory            = var.resources.accounting.memory_gibibytes - local.resources.munge.memory - local.resources.mariadb.memory
             ephemeral_storage = var.resources.accounting.ephemeral_storage_gibibytes - local.resources.munge.ephemeral_storage - local.resources.mariadb.ephemeral_storage
-          } : null
+          }
         }
 
         controller = {
