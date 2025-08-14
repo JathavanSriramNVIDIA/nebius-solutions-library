@@ -36,6 +36,8 @@ variable "checks" {
     install_package_check_enabled = bool
     upgrade_cuda_enabled          = bool
     cuda_version                  = string
+
+    soperator_outputs_logs_cleaner_enabled = bool
   })
   default = {
     create_nebius_user                 = true
@@ -49,5 +51,7 @@ variable "checks" {
     install_package_check_enabled = false
     upgrade_cuda_enabled          = false
     cuda_version                  = "12.4.1-1"
+
+    soperator_outputs_logs_cleaner_enabled = true
   }
 }

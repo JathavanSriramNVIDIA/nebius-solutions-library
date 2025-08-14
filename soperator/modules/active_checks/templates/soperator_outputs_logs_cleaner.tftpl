@@ -1,0 +1,32 @@
+resources:
+  - apiVersion: slurm.nebius.ai/v1alpha1
+    kind: ActiveCheck
+    metadata:
+      name: soperator-outputs-logs-cleaner
+      namespace: ${slurm_cluster_namespace}
+    spec:
+      checkType: k8sJob
+      suspend: true
+      k8sJobSpec:
+        jobContainer:
+          command:
+            - bash
+            - -c
+            - |
+              set -euxo pipefail
+
+              echo "Cleaning old Soperator outputs (health check logs)"
+
+              chroot /mnt/jail /bin/sh -c "find /opt/soperator-outputs -type f -mtime +7 -delete"
+          image: cr.eu-north1.nebius.cloud/soperator/k8s_check_job:1.20.0-jammy-slurm24.05.7
+          volumes:
+          - name: jail
+            persistentVolumeClaim:
+              claimName: jail-pvc
+          volumeMounts:
+          - name: jail
+            mountPath: /mnt/jail
+      name: soperator-outputs-logs-cleaner
+      schedule: "0 17 * * *" # 1 time a day at 17:00 UTC
+      runAfterCreation: false
+      slurmClusterRefName: ${slurm_cluster_name}
