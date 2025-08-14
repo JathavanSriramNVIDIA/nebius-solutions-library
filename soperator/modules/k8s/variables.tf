@@ -92,6 +92,7 @@ variable "node_group_workers" {
     gpu_cluster = optional(object({
       infiniband_fabric = string
     }))
+    preemptible = optional(object({}))
     nodeset_index = number
     subset_index  = number
   }))

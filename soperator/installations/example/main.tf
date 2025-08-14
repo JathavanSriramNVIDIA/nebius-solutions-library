@@ -154,6 +154,7 @@ module "k8s" {
         gpu_cluster             = nodeset.gpu_cluster
         nodeset_index           = i
         subset_index            = subset
+        preemptible             = nodeset.preemptible
       }
     ]
   ])

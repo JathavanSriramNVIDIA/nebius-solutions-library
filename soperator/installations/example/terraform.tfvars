@@ -292,6 +292,8 @@ slurm_nodeset_workers = [{
   gpu_cluster = {
     infiniband_fabric = ""
   }
+  # Change to preemptible = {} in case you want to use preemptible nodes
+  preemptible = null
 }]
 
 # Driverfull mode is used to run Slurm jobs with GPU drivers installed on the worker nodes.

@@ -602,6 +602,7 @@ variable "slurm_nodeset_workers" {
     gpu_cluster = optional(object({
       infiniband_fabric = string
     }))
+    preemptible = optional(object({}))
   }))
   nullable = false
   default = [{
