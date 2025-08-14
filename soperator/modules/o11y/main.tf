@@ -175,6 +175,7 @@ resource "terraform_data" "opentelemetry_collector_cm" {
     o11y_iam_tenant_id  = var.o11y_iam_tenant_id
     o11y_profile        = var.o11y_profile
     configmap_name      = var.opentelemetry_collector_cm
+    iam_project_id      = var.iam_project_id
   }
 
   provisioner "local-exec" {
@@ -202,7 +203,8 @@ metadata:
 data:
   values.yaml: |
     observability:
-      projectId: $PROJECT_ID
+      logsProjectId: $PROJECT_ID
+      metricsProjectId: ${self.triggers_replace.iam_project_id}
 EOF
 EOT
   }
