@@ -150,8 +150,7 @@ ${COMMIT_MESSAGE}
         --head "${NEW_BRANCH}" \
         --title "${pr_title}" \
         --body "${pr_body}" \
-        --assignee "${USERNAME}" \
-        --label "ignore-for-release"
+        --assignee "${USERNAME}"
 
     echo "Pull request created successfully"
 }
