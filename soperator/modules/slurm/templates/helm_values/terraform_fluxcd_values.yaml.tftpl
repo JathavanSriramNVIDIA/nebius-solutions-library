@@ -745,6 +745,14 @@ resources:
                       effect: NoSchedule
                   %{~ endif ~}
 
+        soperatorActiveChecks:
+          enabled: true
+          interval: 5m
+          timeout: 50m
+          version: ${operator_version}
+          releaseName: soperator-activechecks
+          namespace: soperator
+
         soperator:
           enabled: true
           interval: 5m

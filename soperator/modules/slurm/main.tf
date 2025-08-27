@@ -5,76 +5,24 @@ resource "terraform_data" "wait_for_slurm_cluster_hr" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOF
-      set -e
+    command     = templatefile("${path.module}/scripts/wait_for_flux_hr.sh.tmpl", {
+      k8s_cluster_context = var.k8s_cluster_context
+      helmrelease_name    = "flux-system-soperator-fluxcd-slurm-cluster"
+    })
+  }
+}
 
-      CONTEXT="${var.k8s_cluster_context}"
-      NAMESPACE="flux-system"
-      HELMRELEASE_NAME="flux-system-soperator-fluxcd-slurm-cluster"
-      TIMEOUT_MINUTES=60
-      MAX_RETRIES=$((TIMEOUT_MINUTES * 12))  # Check every 5 seconds
-      SLEEP_SECONDS=5
+resource "terraform_data" "wait_for_soperator_activechecks_hr" {
+  depends_on = [
+    helm_release.flux2_sync,
+  ]
 
-      echo "Waiting for HelmRelease CRD to be available..."
-      for i in $(seq 1 $MAX_RETRIES); do
-        if kubectl get crd helmreleases.helm.toolkit.fluxcd.io --context "$CONTEXT" 2>/dev/null; then
-          echo "HelmRelease CRD is available."
-          break
-        fi
-
-        if [ $i -eq $MAX_RETRIES ]; then
-          echo "Timeout reached waiting for HelmRelease CRD."
-          exit 1
-        fi
-
-        echo "($i/$MAX_RETRIES) Waiting for HelmRelease CRD..."
-        sleep "$SLEEP_SECONDS"
-      done
-
-      echo "Waiting for HelmRelease $HELMRELEASE_NAME to be created..."
-      for i in $(seq 1 $MAX_RETRIES); do
-        if kubectl get helmreleases.helm.toolkit.fluxcd.io "$HELMRELEASE_NAME" -n "$NAMESPACE" --context "$CONTEXT" 2>/dev/null; then
-          echo "HelmRelease $HELMRELEASE_NAME exists."
-          break
-        fi
-
-        if [ $i -eq $MAX_RETRIES ]; then
-          echo "Timeout reached waiting for HelmRelease $HELMRELEASE_NAME to be created."
-          exit 1
-        fi
-
-        echo "($i/$MAX_RETRIES) Waiting for HelmRelease $HELMRELEASE_NAME to be created..."
-        sleep "$SLEEP_SECONDS"
-      done
-
-      echo "Waiting for HelmRelease $HELMRELEASE_NAME to be successfully installed..."
-      for i in $(seq 1 $MAX_RETRIES); do
-        # Check if the HelmRelease is in the "Released" state
-        RELEASE_STATUS=$(kubectl get helmreleases.helm.toolkit.fluxcd.io "$HELMRELEASE_NAME" -n "$NAMESPACE" --context "$CONTEXT" -o jsonpath='{.status.conditions[?(@.type=="Released")]}' 2>/dev/null)
-        
-        if [ -n "$RELEASE_STATUS" ]; then
-          RELEASE_STATUS_REASON=$(echo "$RELEASE_STATUS" | jq -r '.reason')
-          RELEASE_STATUS_STATUS=$(echo "$RELEASE_STATUS" | jq -r '.status')
-          
-          if [ "$RELEASE_STATUS_REASON" == "InstallSucceeded" ] && [ "$RELEASE_STATUS_STATUS" == "True" ]; then
-            echo "HelmRelease $HELMRELEASE_NAME has been successfully installed."
-            echo "Details:"
-            echo "$RELEASE_STATUS" | jq .
-            exit 0
-          fi
-        fi
-
-        if [ $i -eq $MAX_RETRIES ]; then
-          echo "Timeout reached waiting for HelmRelease $HELMRELEASE_NAME to be successfully installed."
-          echo "Current status:"
-          kubectl get helmreleases.helm.toolkit.fluxcd.io "$HELMRELEASE_NAME" -n "$NAMESPACE" --context "$CONTEXT" -o yaml
-          exit 1
-        fi
-
-        echo "($i/$MAX_RETRIES) Waiting for HelmRelease $HELMRELEASE_NAME to be successfully installed..."
-        sleep "$SLEEP_SECONDS"
-      done
-    EOF
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = templatefile("${path.module}/scripts/wait_for_flux_hr.sh.tmpl", {
+      k8s_cluster_context = var.k8s_cluster_context
+      helmrelease_name    = "flux-system-soperator-fluxcd-soperator-activechecks"
+    })
   }
 }
 
