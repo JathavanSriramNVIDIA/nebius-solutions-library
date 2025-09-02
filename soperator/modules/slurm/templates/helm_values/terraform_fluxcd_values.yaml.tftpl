@@ -176,7 +176,21 @@ resources:
           %{~ if security_profiles_operator_version != "" ~}
           version: ${security_profiles_operator_version}
           %{~ endif ~}
-          values: null
+          values:
+            daemon:
+              resources:
+                limits:
+                  memory: 128Mi
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+            resources:
+              limits:
+                cpu: 500m
+                memory: 3Gi
+              requests:
+                cpu: 500m
+                memory: 3Gi
         slurmCluster:
           enabled: true
           interval: 5m
