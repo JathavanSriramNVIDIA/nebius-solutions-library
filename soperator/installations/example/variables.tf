@@ -693,7 +693,7 @@ variable "slurm_nodeset_accounting" {
       block_size_kibibytes = number
     })
   })
-  default  = {
+  default = {
     resource = {
       platform = "cpu-d3"
       preset   = "8vcpu-32gb"
