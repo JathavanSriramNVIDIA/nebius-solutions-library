@@ -5,7 +5,7 @@ resource "terraform_data" "wait_for_slurm_cluster_hr" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = templatefile("${path.module}/scripts/wait_for_flux_hr.sh.tmpl", {
+    command = templatefile("${path.module}/scripts/wait_for_flux_hr.sh.tmpl", {
       k8s_cluster_context = var.k8s_cluster_context
       helmrelease_name    = "flux-system-soperator-fluxcd-slurm-cluster"
     })
@@ -19,7 +19,7 @@ resource "terraform_data" "wait_for_soperator_activechecks_hr" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = templatefile("${path.module}/scripts/wait_for_flux_hr.sh.tmpl", {
+    command = templatefile("${path.module}/scripts/wait_for_flux_hr.sh.tmpl", {
       k8s_cluster_context = var.k8s_cluster_context
       helmrelease_name    = "flux-system-soperator-fluxcd-soperator-activechecks"
     })
@@ -295,6 +295,20 @@ resource "helm_release" "soperator_fluxcd_ad_hoc_cm" {
   namespace  = var.flux_namespace
 
   values = [templatefile("${path.module}/templates/helm_values/soperator_fluxcd.yaml.tftpl", {})]
+
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
+resource "helm_release" "cm_terraform_soperator_activechecks" {
+  name       = "terraform-soperator-activechecks"
+  repository = local.helm.repository.raw
+  chart      = local.helm.chart.raw
+  version    = local.helm.version.raw
+  namespace  = var.flux_namespace
+
+  values = [templatefile("${path.module}/templates/helm_values/cm_terraform_soperator_activechecks.yaml.tftpl", {})]
 
   lifecycle {
     ignore_changes = all
