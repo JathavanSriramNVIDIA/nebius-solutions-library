@@ -157,6 +157,12 @@ variable "gpu_disk_size" {
   default     = "1023"
 }
 
+variable "enable_gpu_cluster" {
+  description = "Infiniband's fabric name."
+  type        = bool
+  default     = true
+}
+
 variable "infiniband_fabric" {
   description = "Infiniband's fabric name."
   type        = string

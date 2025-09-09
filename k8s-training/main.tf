@@ -79,7 +79,7 @@ resource "nebius_mk8s_v1_node_group" "cpu-only" {
       }
     ] : null
     underlay_required = false
-    cloud_init_user_data = templatefile("../modules/cloud-init/k8s-cloud-init.tftpl", {
+    cloud_init_user_data = templatefile("${path.module}/../modules/cloud-init/k8s-cloud-init.tftpl", {
       enable_filestore = var.enable_filestore ? "true" : "false",
       ssh_user_name    = var.ssh_user_name,
       ssh_public_key   = local.ssh_public_key
@@ -127,11 +127,11 @@ resource "nebius_mk8s_v1_node_group" "gpu" {
         existing_filesystem = nebius_compute_v1_filesystem.shared-filesystem[0]
       }
     ] : null
-    gpu_cluster  = nebius_compute_v1_gpu_cluster.fabric_2
+    gpu_cluster  = var.enable_gpu_cluster ? nebius_compute_v1_gpu_cluster.fabric_2[0] : null
     gpu_settings = var.gpu_nodes_driverfull_image ? { drivers_preset = "cuda12" } : null
 
     underlay_required = false
-    cloud_init_user_data = templatefile("../modules/cloud-init/k8s-cloud-init.tftpl", {
+    cloud_init_user_data = templatefile("${path.module}/../modules/cloud-init/k8s-cloud-init.tftpl", {
       enable_filestore = var.enable_filestore ? "true" : "false",
       ssh_user_name    = var.ssh_user_name,
       ssh_public_key   = local.ssh_public_key

@@ -78,7 +78,7 @@ resource "nebius_mk8s_v1_node_group" "egress-gateway" {
       size_gibibytes = var.nodes_disk_size
       type           = var.nodes_disk_type
     }
-    cloud_init_user_data = templatefile("../modules/cloud-init/k8s-cloud-init.tftpl", {
+    cloud_init_user_data = templatefile("${path.module}/../cloud-init/k8s-cloud-init.tftpl", {
       enable_filestore = "false",
       ssh_user_name    = var.ssh_user_name,
       ssh_public_key   = var.ssh_public_key
