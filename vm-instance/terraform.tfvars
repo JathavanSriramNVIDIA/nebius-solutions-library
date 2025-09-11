@@ -1,5 +1,5 @@
 #parent_id      = "" # The project-id in this context
-#subnet_id      = "" # Use the command "nebius vpc v1alpha1 network list --parent-id <your_parent_id>" to see the subnet id
+#subnet_id      = "" # Use the command "nebius vpc v1alpha1 network list" to see the subnet id
 
 
 #preset = "16vcpu-64gb"
@@ -24,6 +24,6 @@ create_public_ip_for_all_instances = false
 instance_count                     = 1
 
 shared_filesystem_id = ""
-mount_bucket         = "fabric-6"
+mount_bucket = ""
 
-fabric = ""
+fabric = "fabric-n"
