@@ -44,7 +44,9 @@ resource "nebius_iam_v1_group_membership" "k8s_node_group_sa-admin" {
   parent_id = data.nebius_iam_v1_group.editors[0].id
   member_id = nebius_iam_v1_service_account.k8s_node_group_sa[count.index].id
 }
-
+################
+# CPU NODE GROUP
+################
 resource "nebius_mk8s_v1_node_group" "cpu-only" {
   fixed_node_count = var.cpu_nodes_count
   parent_id        = nebius_mk8s_v1_cluster.k8s-cluster.id
@@ -86,7 +88,9 @@ resource "nebius_mk8s_v1_node_group" "cpu-only" {
     })
   }
 }
-
+#################
+# GPU nODE GROUPS
+#################
 resource "nebius_mk8s_v1_node_group" "gpu" {
   count            = var.gpu_node_groups
   fixed_node_count = var.gpu_nodes_count_per_group
