@@ -11,4 +11,7 @@ module "nfs-module" {
   nfs_size        = var.nfs_size
   platform        = local.cpu_nodes_platform
   preset          = local.cpu_nodes_preset
+  disk_type       = var.disk_type
+  number_raid_disks = var.number_raid_disks
+  public_ip       = var.public_ip
 }

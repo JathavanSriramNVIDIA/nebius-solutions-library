@@ -22,10 +22,10 @@ resource "nebius_compute_v1_instance" "nfs_server" {
   }
 
   secondary_disks = [
-    {
-      device_id     = "nfs-disk" # hardcoded device-label
+    for idx, disk in nebius_compute_v1_disk.nfs-storage-disk : {
+      device_id     = "nfs-disk-${idx}"  # Unique device label for each disk
       attach_mode   = "READ_WRITE"
-      existing_disk = nebius_compute_v1_disk.nfs-storage-disk
+      existing_disk = disk
     }
   ]
 
@@ -35,5 +35,6 @@ resource "nebius_compute_v1_instance" "nfs_server" {
     nfs_ip_range    = var.nfs_ip_range,
     nfs_path        = var.nfs_path,
     mtu_size        = var.mtu_size
+    number_raid_disks = var.number_raid_disks
   })
 }

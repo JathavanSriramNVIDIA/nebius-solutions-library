@@ -8,10 +8,10 @@ variable "parent_id" {
   type        = string
 }
 
-variable "driver_version" {
-  description = "GPU driver version."
-  type        = string
-  default     = "550.54.15"
+variable "enable_dcgm_exporter" {
+  description = "Whether to enable DCGM exporter."
+  type        = bool
+  default     = false
 }
 
 variable "enable_dcgm_service_monitor" {

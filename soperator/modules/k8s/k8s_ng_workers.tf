@@ -50,18 +50,28 @@ resource "nebius_mk8s_v1_node_group" "worker" {
       ])
     }),
     local.node_group_workload_label.worker[count.index],
+    module.labels.label_jail,
   )
 
   fixed_node_count = var.node_group_workers[count.index].size
   strategy = {
-    max_unavailable = {
-      percent = var.node_group_workers[count.index].max_unavailable_percent
-    }
+    max_unavailable = (
+      var.node_group_workers[count.index].max_unavailable_percent != null ?
+      { percent = var.node_group_workers[count.index].max_unavailable_percent } :
+      null
+    )
+    max_surge = (
+      var.node_group_workers[count.index].max_surge_percent != null ?
+      { percent = var.node_group_workers[count.index].max_surge_percent } :
+      null
+    )
+    drain_timeout = var.node_group_workers[count.index].drain_timeout
   }
 
   template = {
     metadata = {
       labels = merge(
+        module.labels.label_jail,
         tomap({
           (module.labels.key_slurm_nodeset_name) = join("-", [
             module.labels.name_nodeset_worker,
@@ -89,6 +99,12 @@ resource "nebius_mk8s_v1_node_group" "worker" {
       )
       : null
     )
+
+    preemptible = var.node_group_workers[count.index].preemptible
+
+    gpu_settings = var.use_preinstalled_gpu_drivers ? {
+      drivers_preset = "cuda12"
+    } : null
 
     boot_disk = {
       type             = var.node_group_workers[count.index].boot_disk.type

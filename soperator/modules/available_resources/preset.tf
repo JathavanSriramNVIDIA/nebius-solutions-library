@@ -9,8 +9,8 @@ locals {
         (module.labels.name_nodeset_system)     = false
         (module.labels.name_nodeset_controller) = true
         (module.labels.name_nodeset_worker)     = false
-        (module.labels.name_nodeset_login)      = true
-        (module.labels.name_nodeset_accounting) = true
+        (module.labels.name_nodeset_login)      = false
+        (module.labels.name_nodeset_accounting) = false
       }
     }
     c-4vcpu-16gb = {
@@ -19,10 +19,10 @@ locals {
       gpus                   = 0
       gpu_cluster_compatible = false
       sufficient = {
-        (module.labels.name_nodeset_system)     = true
+        (module.labels.name_nodeset_system)     = false
         (module.labels.name_nodeset_controller) = true
         (module.labels.name_nodeset_worker)     = false
-        (module.labels.name_nodeset_login)      = true
+        (module.labels.name_nodeset_login)      = false
         (module.labels.name_nodeset_accounting) = true
       }
     }
@@ -35,7 +35,7 @@ locals {
         (module.labels.name_nodeset_system)     = true
         (module.labels.name_nodeset_controller) = true
         (module.labels.name_nodeset_worker)     = true
-        (module.labels.name_nodeset_login)      = true
+        (module.labels.name_nodeset_login)      = false
         (module.labels.name_nodeset_accounting) = true
       }
     }
@@ -211,6 +211,32 @@ locals {
         (module.labels.name_nodeset_accounting) = true
       }
     }
+    g-1gpu-20vcpu-224gb = {
+      cpu_cores              = 20 * local.reserve.cpu.coefficient - local.reserve.cpu.count
+      memory_gibibytes       = 224 * local.reserve.ram.coefficient - local.reserve.ram.count
+      gpus                   = 1
+      gpu_cluster_compatible = false
+      sufficient = {
+        (module.labels.name_nodeset_system)     = true
+        (module.labels.name_nodeset_controller) = true
+        (module.labels.name_nodeset_worker)     = true
+        (module.labels.name_nodeset_login)      = true
+        (module.labels.name_nodeset_accounting) = true
+      }
+    }
+    g-8gpu-160vcpu-1792gb = {
+      cpu_cores              = 160 * local.reserve.cpu.coefficient - local.reserve.cpu.count
+      memory_gibibytes       = 1792 * local.reserve.ram.coefficient - local.reserve.ram.count
+      gpus                   = 8
+      gpu_cluster_compatible = true
+      sufficient = {
+        (module.labels.name_nodeset_system)     = true
+        (module.labels.name_nodeset_controller) = true
+        (module.labels.name_nodeset_worker)     = true
+        (module.labels.name_nodeset_login)      = true
+        (module.labels.name_nodeset_accounting) = true
+      }
+    }
   }
 
   presets_by_platforms = tomap({
@@ -249,6 +275,11 @@ locals {
     "gpu-h200-sxm" = tomap({
       "1gpu-16vcpu-200gb"   = local.presets_gpu.g-1gpu-16vcpu-200gb
       "8gpu-128vcpu-1600gb" = local.presets_gpu.g-8gpu-128vcpu-1600gb
+    })
+
+    "gpu-b200-sxm" = tomap({
+      "1gpu-20vcpu-224gb"   = local.presets_gpu.g-1gpu-20vcpu-224gb
+      "8gpu-160vcpu-1792gb" = local.presets_gpu.g-8gpu-160vcpu-1792gb
     })
   })
 }

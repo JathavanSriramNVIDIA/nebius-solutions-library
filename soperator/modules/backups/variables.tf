@@ -23,6 +23,11 @@ variable "soperator_namespace" {
   type        = string
 }
 
+variable "flux_namespace" {
+  description = "Kubernetes namespace for flux installations."
+  type        = string
+}
+
 variable "k8up_operator_namespace" {
   description = "Kubernetes namespace to install k8up operator to."
   type        = string
@@ -65,17 +70,9 @@ variable "monitoring" {
   type = object({
     enabled   = bool
     namespace = string
-    metrics_collector_endpoint = object({
-      http_host = string
-      port      = number
-    })
   })
   default = {
     enabled   = false
     namespace = ""
-    metrics_collector_endpoint = {
-      http_host = ""
-      port      = 0
-    }
   }
 }

@@ -70,7 +70,7 @@ variable "mtu_size" {
 }
 
 variable "nfs_size" {
-  type        = string
+  type        = number
   description = "Size of the NFS in GB, should be divisbile by 93"
 }
 
@@ -92,3 +92,10 @@ variable "public_ip" {
   default     = false
   description = "attach a public ip to the vm if true"
 }
+
+
+variable "number_raid_disks" {
+  type        = number
+  description = "Number of disks being used in raid"
+  default     = 1
+ }

@@ -14,6 +14,11 @@ variable "operator_stable" {
   default     = true
 }
 
+variable "iam_tenant_id" {
+  description = "ID of the IAM tenant."
+  type        = string
+}
+
 variable "iam_project_id" {
   description = "ID of the IAM project."
   type        = string
@@ -39,6 +44,39 @@ variable "slurm_partition_raw_config" {
   default     = []
 }
 
+# endregion PartitionConfiguration
+
+# region WorkerFeatures
+
+variable "slurm_worker_features" {
+  description = "List of features to be enabled on worker nodes."
+  type = list(object({
+    name          = string
+    hostlist_expr = string
+    nodeset_name  = optional(string)
+  }))
+  default = []
+}
+
+# endregion WorkerFeatures
+
+# region HealthCheckConfig
+
+variable "slurm_health_check_config" {
+  description = "Health check configuration."
+  type = object({
+    health_check_interval = number
+    health_check_program  = string
+    health_check_node_state = list(object({
+      state = string
+    }))
+  })
+  nullable = true
+  default  = null
+}
+
+# endregion HealthCheckConfig
+
 # region Nodes
 
 variable "node_count" {
@@ -49,6 +87,8 @@ variable "node_count" {
     login      = number
   })
 }
+
+# endregion Nodes
 
 # region Resources
 
@@ -91,7 +131,7 @@ variable "resources" {
   # TODO: remove when node sets are supported
   validation {
     condition     = length(var.resources.worker) == 1
-    error_message = "Only one worker node is supported."
+    error_message = "Only one worker nodeset is supported."
   }
 }
 
@@ -143,7 +183,7 @@ variable "login_ssh_root_public_keys" {
 variable "exporter_enabled" {
   description = "Whether to enable Slurm metrics exporter."
   type        = bool
-  default     = true
+  default     = false
 }
 
 # endregion Exporter
@@ -188,6 +228,45 @@ variable "filestores" {
 
 # endregion Filestore
 
+# region Disks
+variable "controller_state_on_filestore" {
+  description = "Whether to use filestore for controller node storage (when true) or PVC (when false)."
+  type        = bool
+  default     = false
+}
+
+variable "node_local_jail_submounts" {
+  description = "Node-local disks to be mounted inside jail."
+  type = list(object({
+    name               = string
+    mount_path         = string
+    size_gibibytes     = number
+    disk_type          = string
+    filesystem_type    = string
+    storage_class_name = string
+  }))
+  nullable = false
+  default  = []
+}
+
+variable "node_local_image_storage" {
+  description = "Node-local disk to store Docker/Enroot data."
+  type = object({
+    enabled = bool
+    spec = optional(object({
+      size_gibibytes     = number
+      filesystem_type    = string
+      storage_class_name = string
+    }))
+  })
+  nullable = false
+  default = {
+    enabled = false
+  }
+}
+
+# endregion Disks
+
 # region nfs-server
 
 variable "nfs" {
@@ -207,6 +286,44 @@ variable "nfs" {
   }
 }
 
+variable "nfs_in_k8s" {
+  type = object({
+    enabled        = bool
+    size_gibibytes = optional(number)
+    storage_class  = optional(string, "compute-csi-network-ssd-io-m3-ext4")
+  })
+  default = {
+    enabled       = false
+  }
+
+  validation {
+    condition     = var.nfs_in_k8s.enabled ? var.nfs_in_k8s.size_gibibytes != null : true
+    error_message = "NFS size_gibibytes must be set."
+  }
+
+  validation {
+    condition     = var.nfs_in_k8s.enabled ? var.nfs.enabled == false : true
+    error_message = "Only one of nfs or nfs_in_k8s should be set."
+  }
+
+  validation {
+    condition = (
+      (
+        var.nfs_in_k8s.enabled &&
+        var.nfs_in_k8s.storage_class == "compute-csi-network-ssd-io-m3-ext4" &&
+        var.nfs_in_k8s.size_gibibytes != null
+      )
+      ?
+      (
+        var.nfs_in_k8s.size_gibibytes % 93 == 0 &&
+        var.nfs_in_k8s.size_gibibytes <= 262074
+      )
+      : true
+    )
+    error_message = "NFS size must be a multiple of 93 GiB and maximum value is 262074 GiB"
+  }
+}
+
 # endregion nfs-server
 
 # region Config
@@ -217,57 +334,7 @@ variable "shared_memory_size_gibibytes" {
   default     = 64
 }
 
-variable "default_prolog_enabled" {
-  description = "Whether to enable default Slurm Prolog script that drain nodes with bad GPUs."
-  type        = bool
-  default     = true
-}
-
-variable "default_epilog_enabled" {
-  description = "Whether to enable default Slurm Epilog script that drain nodes with bad GPUs."
-  type        = bool
-  default     = true
-}
-
 # endregion Config
-
-# region NCCLSettings
-
-variable "nccl_topology_type" {
-  description = "NCCL topology type."
-  type        = string
-  default     = "auto"
-}
-
-# endregion NCCLSettings
-
-# region NCCLBenchmark
-
-variable "nccl_benchmark_enable" {
-  description = "Whether to enable NCCL benchmark CronJob to benchmark GPU performance. It won't take effect in case of 1-GPU hosts."
-  type        = bool
-  default     = true
-}
-
-variable "nccl_benchmark_schedule" {
-  description = "NCCL benchmark's CronJob schedule."
-  type        = string
-  default     = "0 */3 * * *"
-}
-
-variable "nccl_benchmark_min_threshold" {
-  description = "Minimal threshold of NCCL benchmark for GPU performance to be considered as acceptable."
-  type        = number
-  default     = 45
-}
-
-variable "nccl_use_infiniband" {
-  description = "Use infiniband defines using NCCL_P2P_DISABLE=1 NCCL_SHM_DISABLE=1 NCCL_ALGO=Ring env variables for test."
-  type        = bool
-  default     = true
-}
-
-# endregion NCCLBenchmark
 
 # region Telemetry
 
@@ -277,20 +344,21 @@ variable "telemetry_enabled" {
   default     = true
 }
 
-variable "telemetry_grafana_admin_password" {
-  description = "Password of `admin` user of Grafana."
+variable "dcgm_job_mapping_enabled" {
+  description = "Whether to enable HPC job mapping by installing a separate dcgm-exporter"
+  type        = bool
+  default     = true
+}
+
+variable "dcgm_job_map_dir" {
+  description = "Directory where HPC job mapping files are located"
   type        = string
+  default     = "/var/run/nebius/slurm"
 }
 
 # endregion Telemetry
 
 # region Accounting
-
-variable "mariadb_operator_namespace" {
-  description = "Namespace for MariaDB operator."
-  type        = string
-  default     = "mariadb-operator-system"
-}
 
 variable "accounting_enabled" {
   description = "Whether to enable accounting."
@@ -367,6 +435,123 @@ variable "enable_soperator_checks" {
 
 # endregion SoperatorChecks
 
+# region Monitoring
+variable "cluster_name" {
+  description = "the cluster name to use for the monitoring"
+  type        = string
+}
+
+variable "public_o11y_enabled" {
+  description = "Whether to enable public observability endpoints."
+  type        = bool
+  default     = true
+}
+
+variable "soperator_notifier" {
+  description = "Configuration of the Soperator Notifier (https://github.com/nebius/soperator/tree/main/helm/soperator-notifier)."
+  type = object({
+    enabled           = bool
+    slack_webhook_url = optional(string)
+  })
+  default = {
+    enabled = false
+  }
+  nullable = false
+}
+
+variable "create_pvcs" {
+  description = "Whether to create PVCs. Uses emptyDir if false."
+  type        = bool
+  default     = true
+}
+
+variable "resources_vm_operator" {
+  description = "Resources for VictoriaMetrics Operator."
+  type = object({
+    memory = string
+    cpu    = string
+  })
+  default = {
+    memory = "512Mi"
+    cpu    = "250m"
+  }
+}
+
+variable "resources_vm_logs_server" {
+  type = object({
+    memory = string
+    cpu    = string
+    size   = string
+  })
+  default = {
+    memory = "2Gi"
+    cpu    = "1000m"
+    size   = "40Gi"
+  }
+}
+
+variable "resources_vm_single" {
+  type = object({
+    memory     = string
+    cpu        = string
+    size       = string
+    gomaxprocs = number
+  })
+  default = {
+    memory     = "24Gi"
+    cpu        = "6000m"
+    size       = "512Gi"
+    gomaxprocs = 6
+  }
+}
+
+variable "resources_vm_agent" {
+  type = object({
+    memory = string
+    cpu    = string
+  })
+  default = {
+    memory = "10Gi"
+    cpu    = "5000m"
+  }
+}
+
+variable "resources_events_collector" {
+  type = object({
+    memory = string
+    cpu    = string
+  })
+  default = {
+    memory = "128Mi"
+    cpu    = "100m"
+  }
+}
+
+
+variable "resources_logs_collector" {
+  type = object({
+    memory = string
+    cpu    = string
+  })
+  default = {
+    memory = "200Mi"
+    cpu    = "200m"
+  }
+}
+
+variable "resources_jail_logs_collector" {
+  type = object({
+    memory = string
+    cpu    = string
+  })
+  default = {
+    memory = "1Gi"
+    cpu    = "1000m"
+  }
+}
+
+# endregion Monitoring
+
 # region SConfigController
 
 variable "sconfigcontroller" {
@@ -399,4 +584,114 @@ variable "sconfigcontroller" {
       }
     }
   }
+}
+
+# endregion SConfigController
+
+# region fluxcd
+variable "github_org" {
+  description = "The GitHub organization."
+  type        = string
+  default     = "nebius"
+}
+
+variable "github_repository" {
+  description = "The GitHub repository."
+  type        = string
+  default     = "soperator"
+}
+
+variable "github_branch" {
+  description = "The GitHub branch."
+  type        = string
+  default     = "dev"
+}
+variable "flux_interval" {
+  description = "The interval for Flux to check for changes."
+  type        = string
+  default     = "1m"
+}
+
+variable "flux_kustomization_path" {
+  description = "The name of the Flux customization."
+  type        = string
+  default     = "fluxcd/environment/nebius-cloud"
+}
+
+variable "cert_manager_version" {
+  description = "The version of the cert-manager."
+  type        = string
+  default     = ""
+}
+
+variable "k8up_version" {
+  description = "The version of the k8up."
+  type        = string
+  default     = ""
+}
+
+variable "mariadb_operator_version" {
+  description = "The version of the mariadb operator."
+  type        = string
+  default     = ""
+}
+
+variable "opentelemetry_collector_version" {
+  description = "The version of the opentelemetry operator."
+  type        = string
+  default     = ""
+}
+
+variable "prometheus_crds_version" {
+  description = "The version of the prometheus crds."
+  type        = string
+  default     = ""
+}
+variable "security_profiles_operator_version" {
+  description = "The version of the security profiles operator."
+  type        = string
+  default     = ""
+}
+
+variable "vmstack_version" {
+  description = "The version of the vmstack."
+  type        = string
+  default     = ""
+}
+
+variable "vmstack_crds_version" {
+  description = "The version of the vmstack."
+  type        = string
+  default     = ""
+}
+
+variable "vmlogs_version" {
+  description = "The version of the vmlogs."
+  type        = string
+  default     = ""
+}
+
+variable "flux_namespace" {
+  description = "Kubernetes namespace to look for jail in."
+  type        = string
+}
+# endregion fluxcd
+
+variable "backups_enabled" {
+  description = "Whether to enable backups."
+  type        = bool
+  default     = false
+}
+
+
+variable "region" {
+  description = "Region where the Slurm cluster is deployed."
+  type        = string
+  default     = "eu-north1"
+}
+
+variable "use_preinstalled_gpu_drivers" {
+  description = "Whether to use preinstalled GPU drivers."
+  type        = bool
+  default     = false
 }

@@ -45,8 +45,34 @@ variable "iam_tenant_id" {
     error_message = "ID of the IAM tenant must start with `tenant-`."
   }
 }
+
 data "nebius_iam_v1_tenant" "this" {
   id = var.iam_tenant_id
+}
+
+variable "o11y_iam_tenant_id" {
+  description = "ID of the IAM tenant for O11y."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = startswith(var.o11y_iam_tenant_id, "tenant-")
+    error_message = "ID of the IAM tenant must start with `tenant-`."
+  }
+}
+
+variable "o11y_profile" {
+  description = "Profile for nebius CLI for public o11y."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition = (
+      (length(var.o11y_profile) >= 1 && var.public_o11y_enabled) ||
+      !var.public_o11y_enabled
+    )
+    error_message = "O11y profile must be not empty if public o11y enabled is true."
+  }
 }
 
 variable "vpc_subnet_id" {
@@ -89,6 +115,12 @@ variable "company_name" {
 
 # region Storage
 
+variable "controller_state_on_filestore" {
+  description = "Whether to use Filestore for controller node boot disk (true = Filestore, false = PVC)."
+  type        = bool
+  default     = false
+}
+
 variable "filestore_controller_spool" {
   description = "Shared filesystem to be used on controller nodes."
   type = object({
@@ -103,7 +135,10 @@ variable "filestore_controller_spool" {
   nullable = false
 
   validation {
-    condition     = (var.filestore_controller_spool.existing != null && var.filestore_controller_spool.spec == null) || (var.filestore_controller_spool.existing == null && var.filestore_controller_spool.spec != null)
+    condition = (
+      (var.filestore_controller_spool.existing != null && var.filestore_controller_spool.spec == null) ||
+      (var.filestore_controller_spool.existing == null && var.filestore_controller_spool.spec != null)
+    )
     error_message = "One of `existing` or `spec` must be provided."
   }
 }
@@ -122,7 +157,10 @@ variable "filestore_jail" {
   nullable = false
 
   validation {
-    condition     = (var.filestore_jail.existing != null && var.filestore_jail.spec == null) || (var.filestore_jail.existing == null && var.filestore_jail.spec != null)
+    condition = (
+      (var.filestore_jail.existing != null && var.filestore_jail.spec == null) ||
+      (var.filestore_jail.existing == null && var.filestore_jail.spec != null)
+    )
     error_message = "One of `existing` or `spec` must be provided."
   }
 }
@@ -137,6 +175,12 @@ locals {
   filestore_jail_calculated_size_gibibytes = (var.filestore_jail.existing != null ?
     data.nebius_compute_v1_filesystem.existing_jail[0].size_bytes / 1024 / 1024 / 1024 :
   var.filestore_jail.spec.size_gibibytes)
+}
+
+variable "allow_empty_jail_submounts" {
+  description = "Flag for disabling validation for non-empty jail submounts."
+  type        = bool
+  default     = false
 }
 
 variable "filestore_jail_submounts" {
@@ -156,10 +200,106 @@ variable "filestore_jail_submounts" {
 
   validation {
     condition = length([
-      for sm in var.filestore_jail_submounts : true
-      if(sm.existing != null && sm.spec == null) || (sm.existing == null && sm.spec != null)
+      for sm in var.filestore_jail_submounts : true if
+      (sm.existing != null && sm.spec == null) ||
+      (sm.existing == null && sm.spec != null)
     ]) == length(var.filestore_jail_submounts)
     error_message = "All submounts must have one of `existing` or `spec` provided."
+  }
+
+  validation {
+    condition     = var.allow_empty_jail_submounts || length(var.filestore_jail_submounts) >= 1
+    error_message = "Creating clusters without jail submounts is not allowed."
+  }
+}
+
+variable "node_local_jail_submounts" {
+  description = "Node-local disks to be mounted inside jail on worker nodes."
+  type = list(object({
+    name            = string
+    mount_path      = string
+    size_gibibytes  = number
+    disk_type       = string
+    filesystem_type = string
+  }))
+  nullable = false
+  default  = []
+
+  validation {
+    condition = alltrue([
+      for sm in var.node_local_jail_submounts : (
+        contains(
+          [
+            module.resources.disk_types.network_ssd,
+            module.resources.disk_types.network_ssd_non_replicated,
+            module.resources.disk_types.network_ssd_io_m3,
+          ],
+          sm.disk_type
+        )
+    )])
+    error_message = "Disk type must be one of `NETWORK_SSD`, `NETWORK_SSD_NON_REPLICATED` or `NETWORK_SSD_IO_M3`. See https://docs.nebius.com/compute/storage/types#disks-types"
+  }
+  validation {
+    condition = alltrue([
+      for sm in var.node_local_jail_submounts : (
+        contains(
+          [
+            module.resources.filesystem_types.ext4,
+            module.resources.filesystem_types.xfs,
+          ],
+          sm.filesystem_type
+        )
+    )])
+    error_message = "Filesystem type must be one of `ext4` or `xfs`."
+  }
+}
+
+variable "node_local_image_disk" {
+  description = "Whether to create extra NRD/IO M3 disks for storing Docker/Enroot images and container filesystems on each worker node."
+  type = object({
+    enabled = bool
+    spec = optional(object({
+      size_gibibytes  = number
+      filesystem_type = string
+      disk_type       = string
+    }))
+  })
+  default = {
+    enabled = false
+  }
+
+  validation {
+    condition = (var.node_local_image_disk.enabled
+      ? var.node_local_image_disk.spec != null
+      : true
+    )
+    error_message = "Spec must be provided if enabled."
+  }
+  validation {
+    condition = (var.node_local_image_disk.spec == null
+      ? true
+      : (contains(
+        [
+          module.resources.filesystem_types.ext4,
+          module.resources.filesystem_types.xfs,
+        ],
+        var.node_local_image_disk.spec.filesystem_type
+      ))
+    )
+    error_message = "Filesystem type must be one of `ext4` or `xfs`."
+  }
+  validation {
+    condition = (var.node_local_image_disk.spec == null
+      ? true
+      : (contains(
+        [
+          module.resources.disk_types.network_ssd_non_replicated,
+          module.resources.disk_types.network_ssd_io_m3,
+        ],
+        var.node_local_image_disk.spec.disk_type
+      ))
+    )
+    error_message = "Local image disk type must be one of `NETWORK_SSD_NON_REPLICATED` or `NETWORK_SSD_IO_M3`. See https://docs.nebius.com/compute/storage/types#disks-types"
   }
 }
 
@@ -178,10 +318,13 @@ variable "filestore_accounting" {
   nullable = true
 
   validation {
-    condition = var.filestore_accounting != null ? (
-      (var.filestore_accounting.existing != null && var.filestore_accounting.spec == null) ||
-      (var.filestore_accounting.existing == null && var.filestore_accounting.spec != null)
-    ) : true
+    condition = (var.filestore_accounting != null
+      ? (
+        (var.filestore_accounting.existing != null && var.filestore_accounting.spec == null) ||
+        (var.filestore_accounting.existing == null && var.filestore_accounting.spec != null)
+      )
+      : true
+    )
     error_message = "One of `existing` or `spec` must be provided."
   }
 }
@@ -199,18 +342,26 @@ variable "nfs" {
       platform = string
       preset   = string
     })
+    public_ip = bool
   })
   default = {
     enabled        = false
     size_gibibytes = 93
     resource = {
-      platform = "cpu-e2"
+      platform = "cpu-d3"
       preset   = "32vcpu-128gb"
     }
+    public_ip = false
   }
 
   validation {
-    condition     = var.nfs.enabled ? var.nfs.size_gibibytes % 93 == 0 && var.nfs.size_gibibytes <= 262074 : true
+    condition = (var.nfs.enabled
+      ? (
+        var.nfs.size_gibibytes % 93 == 0 &&
+        var.nfs.size_gibibytes <= 262074
+      )
+      : true
+    )
     error_message = "NFS size must be a multiple of 93 GiB and maximum value is 262074 GiB"
   }
 }
@@ -221,19 +372,39 @@ resource "terraform_data" "check_nfs" {
 
   lifecycle {
     precondition {
-      condition     = var.nfs.enabled ? contains(module.resources.platforms, var.nfs.resource.platform) : true
+      condition = (var.nfs.enabled
+        ? contains(module.resources.platforms, var.nfs.resource.platform)
+        : true
+      )
       error_message = "Unsupported platform '${var.nfs.resource.platform}'."
     }
 
     precondition {
-      condition     = var.nfs.enabled ? contains(keys(module.resources.by_platform[var.nfs.resource.platform]), var.nfs.resource.preset) : true
+      condition = (var.nfs.enabled
+        ? contains(keys(module.resources.by_platform[var.nfs.resource.platform]), var.nfs.resource.preset)
+        : true
+      )
       error_message = "Unsupported preset '${var.nfs.resource.preset}' for platform '${var.nfs.resource.platform}'."
     }
 
     precondition {
-      condition     = var.nfs.enabled ? contains(module.resources.platform_regions[var.nfs.resource.platform], var.region) : true
+      condition = (var.nfs.enabled
+        ? contains(module.resources.platform_regions[var.nfs.resource.platform], var.region)
+        : true
+      )
       error_message = "Unsupported platform '${var.nfs.resource.platform}' in region '${var.region}'. See https://docs.nebius.com/compute/virtual-machines/types"
     }
+  }
+}
+
+variable "nfs_in_k8s" {
+  type = object({
+    enabled        = bool
+    size_gibibytes = optional(number)
+    storage_class  = optional(string)
+  })
+  default = {
+    enabled = false
   }
 }
 
@@ -244,12 +415,18 @@ resource "terraform_data" "check_nfs" {
 variable "k8s_version" {
   description = "Version of the k8s to be used."
   type        = string
-  default     = "1.30"
+  default     = null
 
   validation {
-    condition     = length(regexall("^[\\d]+\\.[\\d]+$", var.k8s_version)) == 1
-    error_message = "The k8s cluster version now only supports version in format `<MAJOR>.<MINOR>`."
+    condition     = var.k8s_version == null || can(regex("^[\\d]+\\.[\\d]+$", var.k8s_version))
+    error_message = "The k8s cluster version must be null or in format `<MAJOR>.<MINOR>`."
   }
+}
+
+variable "use_preinstalled_gpu_drivers" {
+  description = "Enable preinstalled mode for worker nodes."
+  type        = bool
+  default     = false
 }
 
 variable "k8s_cluster_node_ssh_access_users" {
@@ -260,6 +437,12 @@ variable "k8s_cluster_node_ssh_access_users" {
   }))
   nullable = false
   default  = []
+}
+
+variable "etcd_cluster_size" {
+  description = "Size of the etcd cluster."
+  type        = number
+  default     = 3
 }
 
 # endregion k8s
@@ -301,6 +484,37 @@ variable "slurm_partition_raw_config" {
 
 # endregion PartitionConfiguration
 
+# region WorkerFeatures
+
+variable "slurm_worker_features" {
+  description = "List of features to be enabled on worker nodes."
+  type = list(object({
+    name          = string
+    hostlist_expr = string
+    nodeset_name  = optional(string)
+  }))
+  default = []
+}
+
+# endregion WorkerFeatures
+
+# region HealthCheckConfig
+
+variable "slurm_health_check_config" {
+  description = "Health check configuration."
+  type = object({
+    health_check_interval = number
+    health_check_program  = string
+    health_check_node_state = list(object({
+      state = string
+    }))
+  })
+  nullable = true
+  default  = null
+}
+
+# endregion HealthCheckConfig
+
 # region Nodes
 
 variable "slurm_nodeset_system" {
@@ -323,7 +537,7 @@ variable "slurm_nodeset_system" {
     min_size = 3
     max_size = 9
     resource = {
-      platform = "cpu-e2"
+      platform = "cpu-d3"
       preset   = "16vcpu-64gb"
     }
     boot_disk = {
@@ -331,6 +545,14 @@ variable "slurm_nodeset_system" {
       size_gibibytes       = 128
       block_size_kibibytes = 4
     }
+  }
+  validation {
+    condition     = var.slurm_nodeset_system.boot_disk.size_gibibytes >= 128
+    error_message = "Boot disks for system nodes must be at least 128 GiB."
+  }
+  validation {
+    condition     = var.slurm_nodeset_system.min_size >= 3
+    error_message = "Minimum size of the system node group must be at least 3."
   }
 }
 
@@ -350,9 +572,9 @@ variable "slurm_nodeset_controller" {
   })
   nullable = false
   default = {
-    size = 1
+    size = 2
     resource = {
-      platform = "cpu-e2"
+      platform = "cpu-d3"
       preset   = "16vcpu-64gb"
     }
     boot_disk = {
@@ -361,6 +583,14 @@ variable "slurm_nodeset_controller" {
       block_size_kibibytes = 4
     }
   }
+  validation {
+    condition     = var.slurm_nodeset_controller.boot_disk.size_gibibytes >= 128
+    error_message = "Boot disks for controller nodes must be at least 128 GiB."
+  }
+  validation {
+    condition     = var.slurm_nodeset_controller.size >= 2
+    error_message = "Size of the controller node group must be at least 2."
+  }
 }
 
 variable "slurm_nodeset_workers" {
@@ -368,7 +598,9 @@ variable "slurm_nodeset_workers" {
   type = list(object({
     size                    = number
     nodes_per_nodegroup     = number
-    max_unavailable_percent = number
+    max_unavailable_percent = optional(number)
+    max_surge_percent       = optional(number)
+    drain_timeout           = optional(string)
     resource = object({
       platform = string
       preset   = string
@@ -381,6 +613,7 @@ variable "slurm_nodeset_workers" {
     gpu_cluster = optional(object({
       infiniband_fabric = string
     }))
+    preemptible = optional(object({}))
   }))
   nullable = false
   default = [{
@@ -388,12 +621,12 @@ variable "slurm_nodeset_workers" {
     nodes_per_nodegroup     = 1
     max_unavailable_percent = 50
     resource = {
-      platform = "cpu-e2"
+      platform = "cpu-d3"
       preset   = "16vcpu-64gb"
     }
     boot_disk = {
       type                 = "NETWORK_SSD"
-      size_gibibytes       = 128
+      size_gibibytes       = 512
       block_size_kibibytes = 4
     }
   }]
@@ -405,10 +638,19 @@ variable "slurm_nodeset_workers" {
   }
 
   validation {
-    condition = length([for worker in var.slurm_nodeset_workers :
-      1 if worker.size % worker.nodes_per_nodegroup != 0
-    ]) == 0
+    condition = alltrue([
+      for worker in var.slurm_nodeset_workers :
+      (worker.size % worker.nodes_per_nodegroup == 0)
+    ])
     error_message = "Worker count must be divisible by nodes_per_nodegroup."
+  }
+
+  validation {
+    condition = alltrue([
+      for worker in var.slurm_nodeset_workers :
+      (worker.boot_disk.size_gibibytes >= 512)
+    ])
+    error_message = "Boot disks for worker nodes must be at least 512 GiB."
   }
 }
 
@@ -430,14 +672,22 @@ variable "slurm_nodeset_login" {
   default = {
     size = 1
     resource = {
-      platform = "cpu-e2"
+      platform = "cpu-d3"
       preset   = "16vcpu-64gb"
     }
     boot_disk = {
       type                 = "NETWORK_SSD"
-      size_gibibytes       = 128
+      size_gibibytes       = 256
       block_size_kibibytes = 4
     }
+  }
+  validation {
+    condition     = var.slurm_nodeset_login.boot_disk.size_gibibytes >= 256
+    error_message = "Boot disks for login nodes must be at least 256 GiB."
+  }
+  validation {
+    condition     = var.slurm_nodeset_login.size >= 1
+    error_message = "Size of the login node group must be at least 1."
   }
 }
 
@@ -454,8 +704,21 @@ variable "slurm_nodeset_accounting" {
       block_size_kibibytes = number
     })
   })
-  nullable = true
-  default  = null
+  default = {
+    resource = {
+      platform = "cpu-d3"
+      preset   = "8vcpu-32gb"
+    }
+    boot_disk = {
+      type                 = "NETWORK_SSD"
+      size_gibibytes       = 128
+      block_size_kibibytes = 4
+    }
+  }
+  validation {
+    condition     = var.slurm_nodeset_accounting.boot_disk.size_gibibytes >= 128
+    error_message = "Boot disks for accounting nodes must be at least 128 GiB."
+  }
 }
 
 resource "terraform_data" "check_slurm_nodeset_accounting" {
@@ -469,6 +732,7 @@ resource "terraform_data" "check_slurm_nodeset_accounting" {
     }
   }
 }
+
 
 resource "terraform_data" "check_slurm_nodeset" {
   for_each = merge({
@@ -485,7 +749,10 @@ resource "terraform_data" "check_slurm_nodeset" {
 
   lifecycle {
     precondition {
-      condition     = try(each.value.size, 0) > 0 || try(each.value.min_size, 0) > 0
+      condition = (
+        try(each.value.size, 0) > 0 ||
+        try(each.value.min_size, 0) > 0
+      )
       error_message = "Either size or min_size must be greater than zero in node set ${each.key}."
     }
 
@@ -564,47 +831,7 @@ variable "slurm_shared_memory_size_gibibytes" {
   default     = 64
 }
 
-variable "default_prolog_enabled" {
-  description = "Whether to enable default Slurm Prolog script that drain nodes with bad GPUs."
-  type        = bool
-  default     = true
-}
-
-variable "default_epilog_enabled" {
-  description = "Whether to enable default Slurm Epilog script that drain nodes with bad GPUs."
-  type        = bool
-  default     = true
-}
-
 # endregion Config
-
-# region NCCL benchmark
-
-variable "nccl_benchmark_enable" {
-  description = "Whether to enable NCCL benchmark CronJob to benchmark GPU performance. It won't take effect in case of 1-GPU hosts."
-  type        = bool
-  default     = true
-}
-
-variable "nccl_benchmark_schedule" {
-  description = "NCCL benchmark's CronJob schedule."
-  type        = string
-  default     = "0 */3 * * *"
-}
-
-variable "nccl_benchmark_min_threshold" {
-  description = "Minimal threshold of NCCL benchmark for GPU performance to be considered as acceptable."
-  type        = number
-  default     = 420
-}
-
-variable "nccl_use_infiniband" {
-  description = "Use infiniband defines using NCCL_P2P_DISABLE=1 NCCL_SHM_DISABLE=1 NCCL_ALGO=Ring env variables for test."
-  type        = bool
-  default     = false
-}
-
-# endregion NCCL benchmark
 
 # region Telemetry
 
@@ -614,11 +841,37 @@ variable "telemetry_enabled" {
   default     = true
 }
 
-variable "telemetry_grafana_admin_password" {
-  description = "Password of `admin` user of Grafana."
-  type        = string
-  nullable    = false
-  sensitive   = true
+variable "public_o11y_enabled" {
+  description = "Whether to enable public observability endpoints."
+  type        = bool
+  default     = true
+}
+
+variable "dcgm_job_mapping_enabled" {
+  description = "Whether to enable HPC job mapping by installing a separate dcgm-exporter"
+  type        = bool
+  default     = true
+}
+
+variable "soperator_notifier" {
+  description = "Configuration of the Soperator Notifier (https://github.com/nebius/soperator/tree/main/helm/soperator-notifier)."
+  type = object({
+    enabled           = bool
+    slack_webhook_url = optional(string)
+  })
+  default = {
+    enabled = false
+  }
+  nullable = false
+
+  validation {
+    condition = (
+      var.soperator_notifier.enabled
+      ? coalesce(var.soperator_notifier.slack_webhook_url, "not_provided") != "not_provided"
+      : true
+    )
+    error_message = "Slack webhook URL must be provided if Soperator Notifier is enabled."
+  }
 }
 
 # endregion Telemetry
@@ -710,6 +963,11 @@ variable "backups_retention" {
   type        = map(any)
 }
 
+variable "cleanup_bucket_on_destroy" {
+  description = "Whether to delete on destroy all backup data from bucket or not"
+  type        = bool
+}
+
 # endregion Backups
 
 # region Apparmor
@@ -736,3 +994,24 @@ variable "maintenance" {
 # endregion Maintenance
 
 # endregion Slurm
+
+# region fluxcd
+variable "github_org" {
+  description = "The GitHub organization."
+  type        = string
+  default     = "nebius"
+}
+
+variable "github_repository" {
+  description = "The GitHub repository."
+  type        = string
+  default     = "soperator"
+}
+
+variable "flux_interval" {
+  description = "The interval for Flux to check for changes."
+  type        = string
+  default     = "1m"
+}
+
+# endregion fluxcd

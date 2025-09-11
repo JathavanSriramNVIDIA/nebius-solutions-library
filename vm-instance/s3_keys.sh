@@ -91,30 +91,30 @@ else
 fi
 
 echo "Creating new access key for Object Storage expiring at ${EXPIRATION_DATE}"
-NEBIUS_SA_ACCESS_KEY_ID=$(nebius iam access-key create \
+NEBIUS_SA_ACCESS_KEY_ID=$(nebius iam v2 access-key create \
   --parent-id "${NEBIUS_PROJECT_ID}" \
   --name "s3-access-$(date +%s)" \
   --account-service-account-id "${NEBIUS_SA_TERRAFORM_ID}" \
   --description 'Temporary S3 Access' \
   --expires-at "${EXPIRATION_DATE}" \
   --format json \
-  | jq -r '.resource_id')
+  | jq -r '.metadata.id')
 echo "Created new access key: ${NEBIUS_SA_ACCESS_KEY_ID}"
 
 # endregion Access key
 
 # region AWS access key
 
-AWS_ACCESS_KEY_ID=$(nebius iam access-key get-by-id \
+AWS_ACCESS_KEY_ID=$(nebius iam v2 access-key get \
   --id "${NEBIUS_SA_ACCESS_KEY_ID}" \
   --format json | jq -r '.status.aws_access_key_id')
 export AWS_ACCESS_KEY_ID
 
 echo "Generating new AWS_SECRET_ACCESS_KEY"
-AWS_SECRET_ACCESS_KEY="$(nebius iam access-key get-secret-once \
+AWS_SECRET_ACCESS_KEY="$(nebius iam v2 access-key get \
   --id "${NEBIUS_SA_ACCESS_KEY_ID}" \
   --format json \
-  | jq -r '.secret')"
+  | jq -r '.status.secret')"
 export AWS_SECRET_ACCESS_KEY
 
 # endregion AWS access key
@@ -125,5 +125,4 @@ aws configure set region eu-north1
 aws configure set endpoint_url https://storage.eu-north1.nebius.cloud:443
 
 
-echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
-echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+echo "If you want to see AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, check out $HOME/.aws/credential."

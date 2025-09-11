@@ -28,7 +28,7 @@ locals {
 
     version = {
       slurm   = var.operator_version
-      mariadb = "0.31.0"
+      mariadb = "0.38.1"
       raw     = "2.0.0"
       spo     = "0.8.4-soperator"
     }
@@ -86,8 +86,8 @@ locals {
       ephemeral_storage = 0.5
     }
     rest = {
-      cpu               = 1
-      memory            = 1
+      cpu               = 2
+      memory            = 8
       ephemeral_storage = 0.5
     }
     mariadb = {
@@ -97,23 +97,53 @@ locals {
     }
     node_configurator = {
       limits = {
-        memory = 1
+        memory = 0.25
       }
       requests = {
-        memory = 1
+        memory = 0.25
+        cpu    = 0.5
+      }
+    }
+    slurm_operator = {
+      limits = {
+        memory = 2
+      }
+      requests = {
+        memory = 2
         cpu    = 1
       }
     }
     slurm_checks = {
       limits = {
-        memory = 1
+        memory = 2
       }
       requests = {
-        memory = 1
+        memory = 2
+        cpu    = 0.5
+      }
+    }
+    kruise_daemon = {
+      cpu    = 0.05
+      memory = 0.128
+    }
+    dcgm_exporter = {
+      cpu    = 0.05
+      memory = 0.5
+    }
+    nfs_server = {
+      limits = {
+        memory = 2
+      }
+      requests = {
+        memory = 0.5
         cpu    = 1
       }
     }
   }
 
   slurm_node_extra = "\\\"{ \\\\\\\"monitoring\\\\\\\": \\\\\\\"https://console.eu.nebius.com/${var.iam_project_id}/compute/instances/$INSTANCE_ID/monitoring\\\\\\\" }\\\""
+
+  # Calculate vmagent remote write queue count based on cluster size
+  # This sets metrics ingestion capacity for larger clusters properly
+  vm_agent_queue_count = 2 + floor(sum(var.node_count.worker) / 60)
 }
