@@ -1,9 +1,12 @@
 #!/bin/bash
 
 # Set the following environment variables:
-# NEBIUS_TENANT_ID='tenant-...'
-# NEBIUS_PROJECT_ID='project-...'
-# NEBIUS_REGION='eu-north1'
+# tenant-xxx
+NEBIUS_TENANT_ID=''
+# project-xxx
+NEBIUS_PROJECT_ID=''
+# eu-north1
+NEBIUS_REGION=''
 
 if [ -z "${NEBIUS_TENANT_ID}" ]; then
   echo "Error: NEBIUS_TENANT_ID is not set"
@@ -32,7 +35,7 @@ NEBIUS_VPC_SUBNET_ID=$(nebius vpc subnet list \
 export NEBIUS_VPC_SUBNET_ID
 
 # Object Storage Bucket
-export NEBIUS_BUCKET_NAME="tfstate-bastion-$(echo -n "${NEBIUS_TENANT_ID}-${NEBIUS_PROJECT_ID}" | md5sum | awk '$0=$1')"
+export NEBIUS_BUCKET_NAME="tfstate-k8s-training-$(echo -n "${NEBIUS_TENANT_ID}-${NEBIUS_PROJECT_ID}" | md5sum | awk '$0=$1')"
 EXISTS=$(nebius storage bucket list \
   --parent-id "${NEBIUS_PROJECT_ID}" \
   --format json \
@@ -48,12 +51,11 @@ else
 fi
 
 # Nebius service account
-NEBIUS_SA_NAME="bastion-tfstate-sa"
-NEBIUS_SA_ID=$(nebius iam service-account get-by-name \
+NEBIUS_SA_NAME="k8s-training-sa"
+NEBIUS_SA_ID=$(nebius iam service-account list \
   --parent-id "${NEBIUS_PROJECT_ID}" \
-  --name "${NEBIUS_SA_NAME}" \
   --format json \
-  | jq -r '.metadata.id')
+  | jq -r --arg SANAME "${NEBIUS_SA_NAME}" 'try .items[] | select(.metadata.name == $SANAME).metadata.id')
 
 if [ -z "$NEBIUS_SA_ID" ]; then
   NEBIUS_SA_ID=$(nebius iam service-account create \
@@ -95,31 +97,31 @@ else
   # Linux (assumes GNU date)
   EXPIRATION_DATE=$(date -d '+1 day' "${DATE_FORMAT}")
 fi
-NEBIUS_SA_ACCESS_KEY_ID=$(nebius iam v2 access-key create \
+NEBIUS_SA_ACCESS_KEY_ID=$(nebius iam access-key create \
   --parent-id "${NEBIUS_PROJECT_ID}" \
-  --name "bastion-tfstate-$(date +%s)" \
+  --name "k8s-training-tfstate-$(date +%s)" \
   --account-service-account-id "${NEBIUS_SA_ID}" \
   --description 'Temporary Object Storage Access for Terraform' \
   --expires-at "${EXPIRATION_DATE}" \
   --format json \
-  | jq -r '.metadata.id')
+  | jq -r '.resource_id')
 echo "Created new access key: ${NEBIUS_SA_ACCESS_KEY_ID}"
 
 # AWS-compatible access key
-export AWS_ACCESS_KEY_ID=$(nebius iam v2 access-key get \
+export AWS_ACCESS_KEY_ID=$(nebius iam access-key get-by-id \
   --id "${NEBIUS_SA_ACCESS_KEY_ID}" \
   --format json | jq -r '.status.aws_access_key_id')
-export AWS_SECRET_ACCESS_KEY=$(nebius iam v2 access-key get \
+export AWS_SECRET_ACCESS_KEY=$(nebius iam access-key get-secret-once \
   --id "${NEBIUS_SA_ACCESS_KEY_ID}" \
   --format json \
-  | jq -r '.status.secret')
+  | jq -r '.secret')
 
 # Use Objext Storage as Terraform backend
 cat > terraform_backend_override.tf << EOF
 terraform {
   backend "s3" {
     bucket = "${NEBIUS_BUCKET_NAME}"
-    key    = "bastion.tfstate"
+    key    = "k8s-training.tfstate"
 
     endpoints = {
       s3 = "https://storage.${NEBIUS_REGION}.nebius.cloud:443"
