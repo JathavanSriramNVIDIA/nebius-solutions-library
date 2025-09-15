@@ -604,7 +604,7 @@ variable "github_repository" {
 variable "github_branch" {
   description = "The GitHub branch."
   type        = string
-  default     = "dev"
+  default     = "main"
 }
 variable "flux_interval" {
   description = "The interval for Flux to check for changes."
