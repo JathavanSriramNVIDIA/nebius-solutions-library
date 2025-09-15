@@ -397,6 +397,17 @@ resource "terraform_data" "check_nfs" {
   }
 }
 
+variable "nfs_in_k8s" {
+  type = object({
+    enabled        = bool
+    size_gibibytes = optional(number)
+    storage_class  = optional(string)
+  })
+  default = {
+    enabled = false
+  }
+}
+
 # endregion nfs-server
 
 # region k8s

@@ -7,6 +7,8 @@ resources:
       values.yaml: |
         helmRepository:
           interval: 15m
+          nfsServer:
+            url: ${soperator_helm_repo}
         certManager:
           enabled: true
           interval: 5m
@@ -205,7 +207,7 @@ resources:
           version: ${operator_version}
           namespace: soperator
           releaseName: soperator
-          overrideValues: 
+          overrideValues:
             clusterName: ${name}
             clusterType: ${slurm_cluster.nodes.worker.resources.gpus > 0 ? "gpu" : "cpu" }
             useDefaultAppArmorProfile: ${apparmor_enabled}
@@ -341,6 +343,15 @@ resources:
                   path: ${slurm_cluster.nfs.path}
                   readOnly: false
                   server: ${slurm_cluster.nfs.host}
+              %{~ endif ~}
+
+              %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+              - name: home-dir
+                createPVC: true
+                storageClassName: nfs
+                size: 42 # capacity is not enforced by neither NFS server nor csi-driver-nfs
+                persistentVolumeClaim:
+                  claimName: "home-dir"
               %{~ endif ~}
 
               %{~ if telemetry_enabled ~}
@@ -545,6 +556,11 @@ resources:
                       name: nfs
                       volumeSourceName: nfs
                     %{~ endif ~}
+                    %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+                    - mountPath: /home
+                      name: home-dir
+                      volumeSourceName: home-dir
+                    %{~ endif ~}
                     %{~ for sub_mount in slurm_cluster.jail_submounts ~}
                     - name: ${sub_mount.name}
                       mountPath: ${sub_mount.mount_path}
@@ -645,6 +661,11 @@ resources:
                       name: nfs
                       volumeSourceName: nfs
                     %{~ endif ~}
+                    %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+                    - mountPath: /home
+                      name: home-dir
+                      volumeSourceName: home-dir
+                    %{~ endif ~}
                     %{~ if telemetry_enabled ~}
                     - mountPath: /etc/update-motd.d/95-nebius-o11y
                       subPath: 95-nebius-o11y
@@ -697,7 +718,7 @@ resources:
                   cpu: ${slurm_cluster.sconfigcontroller.container.resources.cpu }m
                   memory: ${slurm_cluster.sconfigcontroller.container.resources.memory }Mi
                   ephemeralStorage: ${slurm_cluster.sconfigcontroller.container.resources.ephemeral_storage }Mi
-              
+
           slurmClusterStorage:
             enabled: true
             interval: 5m
@@ -829,4 +850,35 @@ resources:
           values:
             slack:
               webhookUrl: "${notifier.slack_webhook_url}"
+          %{~ endif ~}
+
+        nfsServer:
+          enabled: ${slurm_cluster.nfs_in_k8s.enabled}
+          %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+          version: ${operator_version}
+          overrideValues:
+            image:
+              repository: ${soperator_image_repo}/nfs-server
+              tag: ${operator_version}
+            nameOverride: nfs-server
+            nfs:
+              sharedDirectory: "/exported"
+              shareOptions: "rw,fsid=0,async,no_subtree_check,no_auth_nlm,insecure,no_root_squash"
+            storage:
+              storageClassName: "${slurm_cluster.nfs_in_k8s.storage_class}"
+              size: ${slurm_cluster.nfs_in_k8s.size_gibibytes}Gi
+            storageClass:
+              name: nfs
+            resources:
+              requests:
+                memory: ${resources.nfs_server.requests.memory}Gi
+                cpu: ${resources.nfs_server.requests.cpu * 1000}m
+              limits:
+                memory: ${resources.nfs_server.limits.memory}Gi
+            %{~ if telemetry_enabled ~}
+            monitoring:
+              enabled: true
+              serviceMonitor:
+                enabled: true
+            %{~ endif ~}
           %{~ endif ~}

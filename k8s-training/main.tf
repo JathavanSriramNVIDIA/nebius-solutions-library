@@ -44,7 +44,9 @@ resource "nebius_iam_v1_group_membership" "k8s_node_group_sa-admin" {
   parent_id = data.nebius_iam_v1_group.editors[0].id
   member_id = nebius_iam_v1_service_account.k8s_node_group_sa[count.index].id
 }
-
+################
+# CPU NODE GROUP
+################
 resource "nebius_mk8s_v1_node_group" "cpu-only" {
   fixed_node_count = var.cpu_nodes_count
   parent_id        = nebius_mk8s_v1_cluster.k8s-cluster.id
@@ -71,6 +73,10 @@ resource "nebius_mk8s_v1_node_group" "cpu-only" {
       platform = local.cpu_nodes_platform
       preset   = local.cpu_nodes_preset
     }
+    preemptible = var.cpu_nodes_preemptible ? {
+      on_preemption = "STOP"
+      priority      = 1
+    } : null
     filesystems = var.enable_filestore ? [
       {
         attach_mode         = "READ_WRITE"
@@ -86,7 +92,9 @@ resource "nebius_mk8s_v1_node_group" "cpu-only" {
     })
   }
 }
-
+#################
+# GPU nODE GROUPS
+#################
 resource "nebius_mk8s_v1_node_group" "gpu" {
   count            = var.gpu_node_groups
   fixed_node_count = var.gpu_nodes_count_per_group
@@ -120,6 +128,10 @@ resource "nebius_mk8s_v1_node_group" "gpu" {
       platform = local.gpu_nodes_platform
       preset   = local.gpu_nodes_preset
     }
+    preemptible = var.gpu_nodes_preemptible ? {
+      on_preemption = "STOP"
+      priority      = 1
+    } : null
     filesystems = var.enable_filestore ? [
       {
         attach_mode         = "READ_WRITE"
