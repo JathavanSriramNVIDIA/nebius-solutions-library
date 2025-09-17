@@ -103,7 +103,7 @@ resource "nebius_mk8s_v1_node_group" "worker" {
     preemptible = var.node_group_workers[count.index].preemptible
 
     gpu_settings = var.use_preinstalled_gpu_drivers ? {
-      drivers_preset = "cuda12"
+      drivers_preset = "cuda12.8"
     } : null
 
     boot_disk = {
@@ -138,6 +138,8 @@ resource "nebius_mk8s_v1_node_group" "worker" {
       public_ip_address = local.node_ssh_access.enabled ? {} : null
       subnet_id         = var.vpc_subnet_id
     }]
+
+    os = "ubuntu24.04"
 
     cloud_init_user_data = local.node_ssh_access.enabled ? local.node_ssh_access.cloud_init_data : null
   }
