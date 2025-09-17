@@ -780,6 +780,10 @@ resources:
           version: ${operator_version}
           releaseName: soperator-activechecks
           namespace: soperator
+          overrideValues:
+            clusterName: ${name}
+            sshCheck:
+              numOfLoginNodes: ${slurm_cluster.nodes.login.size}
 
         soperator:
           enabled: true
