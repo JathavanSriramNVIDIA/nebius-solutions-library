@@ -266,8 +266,8 @@ resource "helm_release" "flux2_sync" {
   }
 
   set {
-    name  = "gitRepository.spec.ref.branch"
-    value = var.github_branch
+    name  = "gitRepository.spec.ref.${var.github_ref_type}"
+    value = var.github_ref_value
   }
 
   set {
