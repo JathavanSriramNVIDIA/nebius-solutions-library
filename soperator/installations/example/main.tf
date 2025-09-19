@@ -289,6 +289,8 @@ module "slurm" {
 
   source = "../../modules/slurm"
 
+  active_checks_scope = var.active_checks_scope
+
   region              = var.region
   iam_tenant_id       = var.iam_tenant_id
   iam_project_id      = var.iam_project_id

@@ -360,6 +360,19 @@ slurm_exporter_enabled = true
 
 # endregion Exporter
 
+#----------------------------------------------------------------------------------------------------------------------#
+#                                                      ActiveChecks                                                    #
+#----------------------------------------------------------------------------------------------------------------------#
+# region ActiveChecks
+
+# Scope of active checks. Defines what active checks should be checked during cluster bootstrap.
+# By default, prod.
+# All values: prod, dev, testing.
+# ---
+active_checks_scope = "prod"
+
+# endregion ActiveChecks
+
 # endregion Nodes
 
 #----------------------------------------------------------------------------------------------------------------------#

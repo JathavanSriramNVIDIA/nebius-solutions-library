@@ -797,8 +797,7 @@ resources:
           namespace: soperator
           overrideValues:
             clusterName: ${name}
-            sshCheck:
-              numOfLoginNodes: ${slurm_cluster.nodes.login.size}
+            ${soperator_active_checks_override_block}
 
         soperator:
           enabled: true

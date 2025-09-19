@@ -57,6 +57,8 @@ resource "helm_release" "soperator_fluxcd_cm" {
   namespace  = var.flux_namespace
 
   values = [templatefile("${path.module}/templates/helm_values/terraform_fluxcd_values.yaml.tftpl", {
+    soperator_active_checks_override_block = indent(12, local.soperator_activechecks_override_yaml)
+
     backups_enabled    = var.backups_enabled
     telemetry_enabled  = var.telemetry_enabled
     accounting_enabled = var.accounting_enabled
