@@ -563,11 +563,17 @@ variable "github_repository" {
   default     = "soperator"
 }
 
-variable "github_branch" {
-  description = "The GitHub branch."
+variable "github_ref_type" {
+  description = "The GitHub ref type (branch, tag, etc.)."
+  type        = string
+  default     = "branch"
+}
+variable "github_ref_value" {
+  description = "The GitHub ref value (main, v1.22.0, etc.)."
   type        = string
   default     = "main"
 }
+
 variable "flux_interval" {
   description = "The interval for Flux to check for changes."
   type        = string
