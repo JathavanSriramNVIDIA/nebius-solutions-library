@@ -68,7 +68,7 @@ resource "helm_release" "nebius_gpu_health_checker" {
   ]
 
   name      = "nebius-gpu-health-checker"
-  chart     = "./npd-helm/nebius-npd-0.2.0.tgz"
+  chart     = "${path.module}/npd-helm/nebius-npd-0.2.0.tgz"
   namespace = "default"
 
   set {
