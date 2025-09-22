@@ -27,5 +27,3 @@ k8s_cluster:
 anyscale:
   cloud_deployment_id: ""
   anyscale_cli_token: ""
-  object_stroage_access_key: ""
-  object_stroage_secret_key: ""
