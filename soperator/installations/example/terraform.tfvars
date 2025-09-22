@@ -368,6 +368,8 @@ slurm_exporter_enabled = true
 # Scope of active checks. Defines what active checks should be checked during cluster bootstrap.
 # By default, prod.
 # All values: prod, dev, testing.
+# Defaults of the chart: https://github.com/nebius/soperator/blob/1a8e7e322a3dc84974b4f25890e26f8e19c20eb6/helm/soperator-activechecks/values.yaml#L28
+# Defaults override: https://github.com/nebius/nebius-solutions-library/blob/9e971de4d85aeb2799e71a163ed47c8480878314/soperator/modules/slurm/locals_active_checks.tf
 # ---
 active_checks_scope = "prod"
 

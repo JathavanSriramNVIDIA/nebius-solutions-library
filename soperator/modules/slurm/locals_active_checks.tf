@@ -1,4 +1,3 @@
-
 locals {
   # dev scope: disable long dcgmi diag checks
   # testing scope: keep only dcgmi diag r2
