@@ -60,7 +60,7 @@ variable "number_raid_disks" {
   type        = number
   description = "Number of disks being used in raid 0"
   default     = 1
- }
+}
 
 # PUBLIC IP
 variable "public_ip" {
