@@ -1,12 +1,7 @@
 name: "Build soperator terraform release"
 
 on:
-  push:
-    branches:
-      - soperator-release-*
-    paths:
-      - soperator/VERSION
-      - soperator/SUBVERSION
+  workflow_dispatch:
 
 permissions:
   contents: read
