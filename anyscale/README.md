@@ -53,8 +53,6 @@ Wait for the operation to complete.
 
 2. This command should return a cloud deployment ID that starts with `cldrsrc_`. Enter this ID into `cloud_deployment_id` key of `default.yaml`.
 3. Get an [Anyscale CLI token](https://console.anyscale.com/api-keys). Enter the token into `anyscale_cli_token` key of `default.yaml`.
-4. Run `terraform -chdir=prepare output object_storage_bucket_name` to get the name of the bucket that is going to store the users data. Remember the name of the bucket for the next step.
-5. [Create a service account](https://docs.nebius.com/iam/service-accounts/manage) and grant it access to edit the bucket that was mentioned in the previous step. Enter access key and secret key into `object_stroage_access_key` and `object_stroage_secret_key` keys of `default.yaml` respectively.
 
 ### Deploying Kubernetes cluster and Anyscale operator
 1. Initialize the Terraform code in `deploy` directory: 
