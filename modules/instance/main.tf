@@ -26,7 +26,7 @@ resource "nebius_compute_v1_instance" "instance" {
       name              = "eth0"
       subnet_id         = var.subnet_id
       ip_address        = {}
-      public_ip_address = var.public_ip ? (var.create_public_ip_for_all_instances || count.index == 0 ? {} : null) : null
+      public_ip_address = var.public_ip ? {} : null
     }
   ]
 
@@ -39,6 +39,16 @@ resource "nebius_compute_v1_instance" "instance" {
     attach_mode   = "READ_WRITE"
     existing_disk = nebius_compute_v1_disk.boot-disk
   }
+
+  preemptible = var.preemptible ? {
+    on_preemption = "STOP"
+    priority      = 3
+  } : null
+
+  recovery_policy = var.preemptible ? "FAIL" : "RECOVER"
+
+
+
   gpu_cluster = var.gpu_cluster != "" ? { id = var.gpu_cluster } : {}
   secondary_disks = var.add_extra_storage ? [
     {

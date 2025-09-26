@@ -258,7 +258,7 @@ variable "mig_strategy" {
 }
 
 variable "cpu_nodes_preemptible" {
-  description = "Use preemptible VMs for CPU nodes"
+  description = "Whether the cpu nodes should be preemptible"
   type        = bool
   default     = false
 }

@@ -21,6 +21,8 @@ infiniband_fabric = "" # Infiniband fabric name
 gpu_nodes_driverfull_image = true
 enable_k8s_node_group_sa   = true
 enable_egress_gateway      = false
+cpu_nodes_preemptible      = false
+gpu_nodes_preemptible      = false
 
 # MIG configuration
 # mig_strategy =        # If set, possible values include 'single', 'mixed', 'none'
