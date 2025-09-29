@@ -1,6 +1,6 @@
-# Anyscale deployment on Nebius Cloud
+# Anyscale deployment on Nebius AI Cloud
 
-This Terraform module will help with installing Anyscale operator on Nebius cloud.
+This Terraform module installs the Anyscale operator on Nebius AI Cloud.
 
 ## Requirements
 - [Terraform CLI](https://developer.hashicorp.com/terraform/install)
@@ -25,9 +25,9 @@ source ./environment.sh
 
 ## Installation
 
-### Deploying NFS server and creating Object stroage bucket
+### Deploying an NFS server and creating Object storage bucket
 
-1. Initialize the Terraform code in `prepare` directory: 
+1. Initialize the Terraform code in the `prepare` directory: 
 ```bash
 terraform -chdir=prepare init
 ```
@@ -45,17 +45,17 @@ terraform -chdir=prepare apply
 Wait for the operation to complete.
 
 
-### Registering a cluster in Anyscale and configuration
+### Registering a cluster in Anyscale and configuring it
 1. Run the shell script to register an Anyscale cloud:
 ```bash
-./register.sh <cloud-name>
+./register.sh <cloud_name>
 ```
 
-2. This command should return a cloud deployment ID that starts with `cldrsrc_`. Enter this ID into `cloud_deployment_id` key of `default.yaml`.
+2. The command returns a cloud deployment ID that starts with `cldrsrc_`.  Enter the ID into `cloud_deployment_id` key of `default.yaml`.
 3. Get an [Anyscale CLI token](https://console.anyscale.com/api-keys). Enter the token into `anyscale_cli_token` key of `default.yaml`.
 
 ### Deploying Kubernetes cluster and Anyscale operator
-1. Initialize the Terraform code in `deploy` directory: 
+1. Initialize the Terraform code in the `deploy` directory: 
 ```bash
 terraform -chdir=deploy init
 ```
@@ -73,5 +73,5 @@ terraform -chdir=deploy apply
 Wait for the operation to complete.
 
 ## Usage
-You can connect to the cluster and check if the operator pod is running. If that is the case then you can start deploying your workloads via Anyscale Console.
+[Connect to the cluster](https://docs.nebius.com/kubernetes/connect) and check if the operator pod is running. If the pod is running, you can start deploying workloads in Anyscale.
 

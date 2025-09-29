@@ -39,9 +39,9 @@ resource "nebius_applications_v1alpha1_k8s_release" "this" {
   set = {
     "cloudDeploymentId" : local.config.anyscale.cloud_deployment_id,
     "anyscaleCliToken" : local.config.anyscale.anyscale_cli_token,
-    "objectStorageRegion" : var.region,
-    "objectStorageAccessKey" : nebius_iam_v2_access_key.anyscale_bucket_key.status.aws_access_key_id,
-    "objectStorageSecretKey" : nebius_iam_v2_access_key.anyscale_bucket_key.status.secret,
+    "aws.objectStorage.endpoint_url" : "https://storage.${var.region}.nebius.cloud:443",
+    "aws.credentialSecret.accessKeyId" : nebius_iam_v2_access_key.anyscale_bucket_key.status.aws_access_key_id,
+    "aws.credentialSecret.secretAccessKey" : nebius_iam_v2_access_key.anyscale_bucket_key.status.secret
   }
 
   depends_on = [

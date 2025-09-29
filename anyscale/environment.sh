@@ -35,7 +35,7 @@ NEBIUS_VPC_SUBNET_ID=$(nebius vpc subnet list \
 export NEBIUS_VPC_SUBNET_ID
 
 # Object Storage Bucket
-export NEBIUS_BUCKET_NAME="tfstate-k8s-training-$(echo -n "${NEBIUS_TENANT_ID}-${NEBIUS_PROJECT_ID}" | md5sum | awk '$0=$1')"
+export NEBIUS_BUCKET_NAME="tfstate-anyscale-$(echo -n "${NEBIUS_TENANT_ID}-${NEBIUS_PROJECT_ID}" | md5sum | awk '$0=$1')"
 EXISTS=$(nebius storage bucket list \
   --parent-id "${NEBIUS_PROJECT_ID}" \
   --format json \
@@ -51,7 +51,7 @@ else
 fi
 
 # Nebius service account
-NEBIUS_SA_NAME="k8s-training-sa"
+NEBIUS_SA_NAME="anyscale-sa"
 NEBIUS_SA_ID=$(nebius iam service-account list \
   --parent-id "${NEBIUS_PROJECT_ID}" \
   --format json \
@@ -99,7 +99,7 @@ else
 fi
 NEBIUS_SA_ACCESS_KEY_ID=$(nebius iam access-key create \
   --parent-id "${NEBIUS_PROJECT_ID}" \
-  --name "k8s-training-tfstate-$(date +%s)" \
+  --name "anyscale-tfstate-$(date +%s)" \
   --account-service-account-id "${NEBIUS_SA_ID}" \
   --description 'Temporary Object Storage Access for Terraform' \
   --expires-at "${EXPIRATION_DATE}" \
@@ -121,7 +121,7 @@ cat > terraform_backend_override.tf << EOF
 terraform {
   backend "s3" {
     bucket = "${NEBIUS_BUCKET_NAME}"
-    key    = "k8s-training.tfstate"
+    key    = "anyscale.tfstate"
 
     endpoints = {
       s3 = "https://storage.${NEBIUS_REGION}.nebius.cloud:443"
