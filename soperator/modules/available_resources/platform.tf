@@ -1,10 +1,11 @@
 locals {
   platforms = {
-    cpu-e2       = "cpu-e2",
-    cpu-d3       = "cpu-d3"
-    gpu-h100-sxm = "gpu-h100-sxm"
-    gpu-h200-sxm = "gpu-h200-sxm"
-    gpu-b200-sxm = "gpu-b200-sxm"
+    cpu-e2         = "cpu-e2",
+    cpu-d3         = "cpu-d3"
+    gpu-h100-sxm   = "gpu-h100-sxm"
+    gpu-h200-sxm   = "gpu-h200-sxm"
+    gpu-b200-sxm   = "gpu-b200-sxm"
+    gpu-b200-sxm-a = "gpu-b200-sxm-a"
   }
 
   platform_regions = tomap({
@@ -28,6 +29,9 @@ locals {
     ]
     (local.platforms.gpu-b200-sxm) = [
       local.regions.us-central1,
+    ]
+    (local.platforms.gpu-b200-sxm-a) = [
+      local.regions.me-west1,
     ]
   })
 }
