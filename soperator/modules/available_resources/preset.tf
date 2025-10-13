@@ -281,5 +281,10 @@ locals {
       "1gpu-20vcpu-224gb"   = local.presets_gpu.g-1gpu-20vcpu-224gb
       "8gpu-160vcpu-1792gb" = local.presets_gpu.g-8gpu-160vcpu-1792gb
     })
+
+    "gpu-b200-sxm-a" = tomap({
+      "1gpu-20vcpu-224gb"   = local.presets_gpu.g-1gpu-20vcpu-224gb
+      "8gpu-160vcpu-1792gb" = local.presets_gpu.g-8gpu-160vcpu-1792gb
+    })
   })
 }
