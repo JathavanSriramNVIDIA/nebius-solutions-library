@@ -192,6 +192,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
           allocation_id            = var.login_allocation_id
           sshd_config_map_ref_name = var.login_sshd_config_map_ref_name
           root_public_keys         = var.login_ssh_root_public_keys
+          public_ip                = var.login_public_ip
           resources = {
             cpu               = floor(var.resources.login.cpu_cores - local.resources.munge.cpu - local.resources.kruise_daemon.cpu)
             memory            = floor(var.resources.login.memory_gibibytes - local.resources.munge.memory - local.resources.kruise_daemon.memory)

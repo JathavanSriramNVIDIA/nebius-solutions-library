@@ -129,8 +129,9 @@ module "k8s" {
 
   source = "../../modules/k8s"
 
-  iam_project_id = data.nebius_iam_v1_project.this.id
-  vpc_subnet_id  = data.nebius_vpc_v1_subnet.this.id
+  iam_project_id  = data.nebius_iam_v1_project.this.id
+  vpc_subnet_id   = data.nebius_vpc_v1_subnet.this.id
+  login_public_ip = var.slurm_login_public_ip
 
   k8s_version                  = var.k8s_version
   name                         = local.k8s_cluster_name
@@ -423,6 +424,7 @@ module "slurm" {
   slurm_health_check_config       = var.slurm_health_check_config
 
   login_allocation_id            = module.k8s.static_ip_allocation_id
+  login_public_ip                = var.slurm_login_public_ip
   login_sshd_config_map_ref_name = var.slurm_login_sshd_config_map_ref_name
   login_ssh_root_public_keys     = var.slurm_login_ssh_root_public_keys
 

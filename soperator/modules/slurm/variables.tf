@@ -165,6 +165,12 @@ variable "login_allocation_id" {
   default     = null
 }
 
+variable "login_public_ip" {
+  description = "Public or private ip for login node load balancer"
+  type    = bool
+  default = true
+}
+
 variable "login_sshd_config_map_ref_name" {
   description = "Name of configmap with SSHD config, which runs in slurmd container."
   type        = string

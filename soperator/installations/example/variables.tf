@@ -88,6 +88,12 @@ data "nebius_vpc_v1_subnet" "this" {
   id = var.vpc_subnet_id
 }
 
+variable "slurm_login_public_ip" {
+  description = "Public or private ip for login node load balancer"
+  type    = bool
+  default = true
+}
+
 variable "company_name" {
   description = "Name of the company. It is used for naming Slurm & K8s clusters."
   type        = string

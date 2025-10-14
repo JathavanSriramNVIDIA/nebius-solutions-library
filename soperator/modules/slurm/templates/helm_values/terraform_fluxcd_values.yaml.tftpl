@@ -626,6 +626,9 @@ resources:
                 %{~ if slurm_cluster.nodes.login.allocation_id != null ~}
                 sshdServiceAnnotations:
                   "nebius.com/load-balancer-allocation-id": "${slurm_cluster.nodes.login.allocation_id}"
+                  %{~ if !slurm_cluster.nodes.login.public_ip ~}
+                  "nebius.com/load-balancer-type": "internal"
+                  %{~ endif ~}
                 %{~ endif ~}
                 %{~ if length(slurm_cluster.nodes.login.root_public_keys) > 0 ~}
                 sshdConfigMapRefName: "${slurm_cluster.nodes.login.sshd_config_map_ref_name}"

@@ -340,6 +340,11 @@ slurm_nodeset_accounting = {
 #----------------------------------------------------------------------------------------------------------------------#
 # region Login
 
+# Public or private ip for login node load balancer
+# By default, true (public).
+# ---
+slurm_login_public_ip = true
+
 # Authorized keys accepted for connecting to Slurm login nodes via SSH as 'root' user.
 # ---
 slurm_login_ssh_root_public_keys = [

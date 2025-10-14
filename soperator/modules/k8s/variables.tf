@@ -8,6 +8,12 @@ variable "vpc_subnet_id" {
   type        = string
 }
 
+variable "login_public_ip" {
+  description = "Public or private ip for login node load balancer"
+  type    = bool
+  default = true
+}
+
 #---
 
 # K8s cluster
