@@ -345,6 +345,11 @@ slurm_nodeset_accounting = {
 # ---
 slurm_login_public_ip = true
 
+# Whether to enable Tailscale init container on login pod.
+# By default, false
+# ---
+tailscale_enabled = true
+
 # Authorized keys accepted for connecting to Slurm login nodes via SSH as 'root' user.
 # ---
 slurm_login_ssh_root_public_keys = [

@@ -171,6 +171,12 @@ variable "login_public_ip" {
   default = true
 }
 
+variable "tailscale_enabled" {
+  description = "Whether to enable tailscale init container on login pod"
+  type        = bool
+  default     = false
+}
+
 variable "login_sshd_config_map_ref_name" {
   description = "Name of configmap with SSHD config, which runs in slurmd container."
   type        = string

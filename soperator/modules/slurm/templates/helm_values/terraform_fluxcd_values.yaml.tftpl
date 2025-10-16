@@ -652,6 +652,31 @@ resources:
                     image: cr.eu-north1.nebius.cloud/soperator/busybox
                     volumeMounts: [{ name: jail, mountPath: /volume-mount }]
                     command: ["grep", " /volume-mount virtiofs ", "/proc/mounts"]
+                  %{~ if tailscale_enabled ~}
+                  - name: tailscale
+                    image: ghcr.io/tailscale/tailscale:latest # TODO: push image
+                    imagePullPolicy: Always
+                    restartPolicy: Always
+                    securityContext:
+                      privileged: true
+                    env:
+                      - name: POD_NAME
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.name
+                      - name: POD_UID
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.uid
+                      - name: TS_DEBUG_FIREWALL_MODE
+                        value: auto
+                      - name: TS_KUBE_SECRET
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.name
+                      - name: TS_USERSPACE
+                        value: "false"
+                  %{~ endif ~}
                   %{~ for sub_mount in slurm_cluster.jail_submounts ~}
                   - name: ensure-jail-submount-${sub_mount.name}-virtiofs
                     image: cr.eu-north1.nebius.cloud/soperator/busybox
@@ -889,3 +914,5 @@ resources:
                 enabled: true
             %{~ endif ~}
           %{~ endif ~}
+        tailscale:
+          enabled: ${tailscale_enabled}
