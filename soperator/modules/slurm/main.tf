@@ -70,6 +70,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
 
     dcgm_job_mapping_enabled = var.dcgm_job_mapping_enabled
 
+    tailscale_enabled       = var.tailscale_enabled
     apparmor_enabled        = var.use_default_apparmor_profile
     enable_soperator_checks = var.enable_soperator_checks
 

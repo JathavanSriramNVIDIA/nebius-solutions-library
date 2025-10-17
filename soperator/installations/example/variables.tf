@@ -94,6 +94,12 @@ variable "slurm_login_public_ip" {
   default = true
 }
 
+variable "tailscale_enabled" {
+  description = "Whether to enable tailscale init container on login pod"
+  type        = bool
+  default     = false
+}
+
 variable "company_name" {
   description = "Name of the company. It is used for naming Slurm & K8s clusters."
   type        = string
