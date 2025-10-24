@@ -64,4 +64,4 @@ kuberay_max_gpu_replicas = 8
 # }
 
 # NPD nebius-gpu-health-checker helm install
-gpu_health_cheker = true
+gpu_health_cheker = false
