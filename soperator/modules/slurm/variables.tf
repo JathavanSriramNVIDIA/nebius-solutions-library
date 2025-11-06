@@ -779,3 +779,9 @@ variable "slurm_nodesets_partitions" {
 }
 
 # endregion Nodesets
+
+variable "use_cuda13rc" {
+  description = "Whether to use unstable image with CUDA 13."
+  type        = bool
+  default     = false
+}

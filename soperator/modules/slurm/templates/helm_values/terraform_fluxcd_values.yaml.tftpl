@@ -769,6 +769,11 @@ resources:
                   memory: ${slurm_cluster.sconfigcontroller.container.resources.memory }Mi
                   ephemeralStorage: ${slurm_cluster.sconfigcontroller.container.resources.ephemeral_storage }Mi
 
+            %{~ if slurm_cluster.use_cuda13rc ~}
+            images:
+              populateJail: "cr.eu-north1.nebius.cloud/soperator-unstable/populate_jail:1.22.2-noble-slurm24.11.6-47ca8a62"
+            %{~ endif ~}
+
           slurmClusterStorage:
             enabled: true
             interval: 5m
@@ -888,6 +893,9 @@ resources:
           overrideValues:
             clusterName: ${name}
             ${soperator_active_checks_override_block}
+            %{~ if slurm_cluster.use_cuda13rc ~}
+            activeCheckImage: "cr.eu-north1.nebius.cloud#soperator/active_checks:13.0.2-ubuntu24.04-nccl_tests2.17.6-89c97b0"
+            %{~ endif ~}
 
         soperator:
           enabled: true
