@@ -103,7 +103,7 @@ resource "nebius_mk8s_v1_node_group" "worker" {
     preemptible = var.node_group_workers[count.index].preemptible
 
     gpu_settings = var.use_preinstalled_gpu_drivers ? {
-      drivers_preset = "cuda12.8"
+      drivers_preset = module.resources.driver_preset_by_platform[var.node_group_workers[count.index].resource.platform]
     } : null
 
     boot_disk = {

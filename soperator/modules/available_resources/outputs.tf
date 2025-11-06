@@ -35,3 +35,8 @@ output "filesystem_types" {
   description = "Supported filesystem types."
   value       = local.filesystem_types
 }
+
+output "driver_preset_by_platform" {
+  description = "Supported driver preset by platform."
+  value       = local.platform_driver_presets
+}
