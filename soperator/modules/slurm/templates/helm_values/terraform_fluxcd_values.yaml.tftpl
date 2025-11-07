@@ -871,7 +871,7 @@ resources:
                   resources:
                     cpu: ${floor(worker_resources[node_group.nodeset_index].cpu_cores * 1000)}m
                     memory: ${floor(worker_resources[node_group.nodeset_index].memory_gibibytes)}Gi
-                    ephemeralStorage: ${worker_resources[node_group.nodeset_index].ephemeral_storage_gibibytes}Gi
+                    ephemeral-storage: ${worker_resources[node_group.nodeset_index].ephemeral_storage_gibibytes}Gi
                     %{~ if worker_resources[node_group.nodeset_index].gpus > 0 ~}
                     nvidia.com/gpu: ${worker_resources[node_group.nodeset_index].gpus}
                     %{~ endif ~}
@@ -881,7 +881,7 @@ resources:
                   resources:
                     cpu: ${slurm_cluster.nodes.munge.resources.cpu * 1000}m
                     memory: ${slurm_cluster.nodes.munge.resources.memory}Gi
-                    ephemeralStorage: ${slurm_cluster.nodes.munge.resources.ephemeral_storage}Gi
+                    ephemeral-storage: ${slurm_cluster.nodes.munge.resources.ephemeral_storage}Gi
               %{~ endfor ~}
           %{~ endif ~}
 
