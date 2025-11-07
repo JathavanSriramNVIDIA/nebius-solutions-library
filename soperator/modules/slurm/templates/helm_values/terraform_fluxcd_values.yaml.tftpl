@@ -876,7 +876,7 @@ resources:
                     nvidia.com/gpu: ${worker_resources[node_group.nodeset_index].gpus}
                     %{~ endif ~}
                 nodeConfig:
-                  static: "CPUs=${worker_resources[node_group.nodeset_index].cpu_cores} RealMemory=${floor(worker_resources[node_group.nodeset_index].memory_gibibytes * 1024)} %{~ if worker_resources[node_group.nodeset_index].gpus > 0 ~}Gres=gpu:${worker_resources[node_group.nodeset_index].gpus}%{~ endif ~}"
+                  static: "CPUs=${worker_resources[node_group.nodeset_index].cpu_cores} RealMemory=${floor(worker_resources[node_group.nodeset_index].memory_gibibytes * 1024)} %{ if worker_resources[node_group.nodeset_index].gpus > 0 ~} Gres=gpu:${worker_resources[node_group.nodeset_index].gpus}%{~ endif ~}"
                 munge:
                   resources:
                     cpu: ${slurm_cluster.nodes.munge.resources.cpu * 1000}m
