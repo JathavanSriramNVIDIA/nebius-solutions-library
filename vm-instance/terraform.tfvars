@@ -1,12 +1,12 @@
 #parent_id      = "" # The project-id in this context
-#subnet_id      = "" # Use the command "nebius vpc v1alpha1 network list --parent-id <your_parent_id>" to see the subnet id
+#subnet_id      = "" # Use the command "nebius vpc v1alpha1 network list" to see the subnet id
 
 
 #preset = "16vcpu-64gb"
 #platform = "cpu-d3"
-preset = "8gpu-128vcpu-1600gb"
-#preset = "1gpu-16vcpu-200gb"
-platform = "gpu-h100-sxm"
+#preset = "8gpu-128vcpu-1600gb"
+preset = "1gpu-16vcpu-200gb"
+platform = "gpu-h200-sxm"
 
 users = [
   {
@@ -20,10 +20,10 @@ users = [
 ]
 
 public_ip                          = true
-create_public_ip_for_all_instances = false
-instance_count                     = 1
+instance_count                     = 2
+preemptible                        = false
 
 shared_filesystem_id = ""
-mount_bucket         = "fabric-6"
+mount_bucket         = ""
 
-fabric = ""
+fabric = "fabric-n"

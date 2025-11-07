@@ -82,11 +82,20 @@ resource "nebius_mk8s_v1_node_group" "login" {
 }
 
 resource "nebius_vpc_v1_allocation" "this" {
+  lifecycle {
+    create_before_destroy = true
+  }
+
   parent_id = var.iam_project_id
 
-  name = "${var.name}-static-ip"
+  name = var.login_public_ip ? "${var.name}-public-static-ip" : "${var.name}-private-static-ip"
 
-  ipv4_public = {
+  ipv4_public = var.login_public_ip ? {
+    cidr      = "/32"
+    subnet_id = var.vpc_subnet_id
+  } : null
+
+  ipv4_private = var.login_public_ip ? null : {
     cidr      = "/32"
     subnet_id = var.vpc_subnet_id
   }

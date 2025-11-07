@@ -7,6 +7,8 @@ resources:
       values.yaml: |
         helmRepository:
           interval: 15m
+          nfsServer:
+            url: ${soperator_helm_repo}
         certManager:
           enabled: true
           interval: 5m
@@ -213,7 +215,28 @@ resources:
             maintenance: ${slurm_cluster.maintenance}
 
             partitionConfiguration:
-              configType: ${slurm_cluster.partition_configuration.slurm_config_type}
+              configType: ${slurm_nodesets_enabled ? "structured" : slurm_cluster.partition_configuration.slurm_config_type}
+              %{~ if slurm_nodesets_enabled ~}
+              partitions:
+                %{~ if length(slurm_nodesets_partitions) > 0 ~}
+                %{~ for partition in slurm_nodesets_partitions ~}
+                - name: ${partition.name}
+                  %{~ if partition.is_all ~}
+                  nodes: ALL
+                  %{~ else ~}
+                  nodeSetRefs:
+                    %{~ for nodeset_ref in partition.nodeset_refs ~}
+                    - "${nodeset_ref}"
+                    %{~ endfor ~}
+                  %{~ endif ~}
+                  config: "${partition.config}"
+                %{~ endfor ~}
+                %{~ else ~}
+                - name: main
+                  default: true
+                  nodes: ALL
+                %{~ endif ~}
+              %{~ endif ~}
               %{~ if slurm_cluster.partition_configuration.slurm_config_type == "custom" ~}
               rawConfig:
                 %{~ for partition in slurm_cluster.partition_configuration.slurm_raw_config ~}
@@ -342,6 +365,15 @@ resources:
                   path: ${slurm_cluster.nfs.path}
                   readOnly: false
                   server: ${slurm_cluster.nfs.host}
+              %{~ endif ~}
+
+              %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+              - name: home-dir
+                createPVC: true
+                storageClassName: nfs
+                size: 42 # capacity is not enforced by neither NFS server nor csi-driver-nfs
+                persistentVolumeClaim:
+                  claimName: "home-dir"
               %{~ endif ~}
 
               %{~ if telemetry_enabled ~}
@@ -546,12 +578,10 @@ resources:
                       name: nfs
                       volumeSourceName: nfs
                     %{~ endif ~}
-                    %{~ if telemetry_enabled ~}
-                    - mountPath: /etc/update-motd.d/95-nebius-o11y
-                      subPath: 95-nebius-o11y
-                      readOnly: true
-                      name: motd-nebius-o11y
-                      volumeSourceName: motd-nebius-o11y
+                    %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+                    - mountPath: /home
+                      name: home-dir
+                      volumeSourceName: home-dir
                     %{~ endif ~}
                     %{~ for sub_mount in slurm_cluster.jail_submounts ~}
                     - name: ${sub_mount.name}
@@ -617,6 +647,9 @@ resources:
                 %{~ if slurm_cluster.nodes.login.allocation_id != null ~}
                 sshdServiceAnnotations:
                   "nebius.com/load-balancer-allocation-id": "${slurm_cluster.nodes.login.allocation_id}"
+                  %{~ if !slurm_cluster.nodes.login.public_ip ~}
+                  "nebius.com/load-balancer-type": "internal"
+                  %{~ endif ~}
                 %{~ endif ~}
                 %{~ if length(slurm_cluster.nodes.login.root_public_keys) > 0 ~}
                 sshdConfigMapRefName: "${slurm_cluster.nodes.login.sshd_config_map_ref_name}"
@@ -640,6 +673,31 @@ resources:
                     image: cr.eu-north1.nebius.cloud/soperator/busybox
                     volumeMounts: [{ name: jail, mountPath: /volume-mount }]
                     command: ["grep", " /volume-mount virtiofs ", "/proc/mounts"]
+                  %{~ if tailscale_enabled ~}
+                  - name: tailscale
+                    image: cr.eu-north1.nebius.cloud/soperator/tailscale:latest # v1.88.4
+                    imagePullPolicy: Always
+                    restartPolicy: Always
+                    securityContext:
+                      privileged: true
+                    env:
+                      - name: POD_NAME
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.name
+                      - name: POD_UID
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.uid
+                      - name: TS_DEBUG_FIREWALL_MODE
+                        value: auto
+                      - name: TS_KUBE_SECRET
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.name
+                      - name: TS_USERSPACE
+                        value: "false"
+                  %{~ endif ~}
                   %{~ for sub_mount in slurm_cluster.jail_submounts ~}
                   - name: ensure-jail-submount-${sub_mount.name}-virtiofs
                     image: cr.eu-north1.nebius.cloud/soperator/busybox
@@ -652,6 +710,11 @@ resources:
                     - mountPath: ${slurm_cluster.nfs.mount_path}
                       name: nfs
                       volumeSourceName: nfs
+                    %{~ endif ~}
+                    %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+                    - mountPath: /home
+                      name: home-dir
+                      volumeSourceName: home-dir
                     %{~ endif ~}
                     %{~ if telemetry_enabled ~}
                     - mountPath: /etc/update-motd.d/95-nebius-o11y
@@ -779,6 +842,47 @@ resources:
                       effect: NoSchedule
                   %{~ endif ~}
 
+        nodesets:
+          enabled: ${slurm_nodesets_enabled}
+          %{~ if slurm_nodesets_enabled ~}
+          interval: 5m
+          timeout: 5m
+          version: ${operator_version}
+          namespace: soperator
+          releaseName: soperator-nodesets
+          overrideValues:
+            nodesets:
+              %{~ for node_group in node_group_workers ~}
+              - name: ${node_group.name}%{~ if node_group.subset_index > 0 ~}-${node_group.subset_index}%{~ endif ~}
+
+                replicas: ${node_group.size}
+                nodeSelector:
+                  slurm.nebius.ai/nodeset-name: ${node_group.name}
+                slurmd:
+                  volumes:
+                    spool:
+                      emptyDir: {}
+                    jail:
+                      persistentVolumeClaim:
+                        claimName: jail-pvc
+                        readOnly: false
+                  resources:
+                    cpu: ${floor(worker_resources[node_group.nodeset_index].cpu_cores * 1000)}m
+                    memory: ${floor(worker_resources[node_group.nodeset_index].memory_gibibytes)}Gi
+                    ephemeralStorage: ${worker_resources[node_group.nodeset_index].ephemeral_storage_gibibytes}Gi
+                    %{~ if worker_resources[node_group.nodeset_index].gpus > 0 ~}
+                    nvidia.com/gpu: ${worker_resources[node_group.nodeset_index].gpus}
+                    %{~ endif ~}
+                nodeConfig:
+                  static: "CPUs=${worker_resources[node_group.nodeset_index].cpu_cores} RealMemory=${floor(worker_resources[node_group.nodeset_index].memory_gibibytes * 1024)} %{~ if worker_resources[node_group.nodeset_index].gpus > 0 ~}Gres=gpu:${worker_resources[node_group.nodeset_index].gpus}%{~ endif ~}"
+                munge:
+                  resources:
+                    cpu: ${slurm_cluster.nodes.munge.resources.cpu * 1000}m
+                    memory: ${slurm_cluster.nodes.munge.resources.memory}Gi
+                    ephemeralStorage: ${slurm_cluster.nodes.munge.resources.ephemeral_storage}Gi
+              %{~ endfor ~}
+          %{~ endif ~}
+
         soperatorActiveChecks:
           enabled: true
           interval: 5m
@@ -788,8 +892,7 @@ resources:
           namespace: soperator
           overrideValues:
             clusterName: ${name}
-            sshCheck:
-              numOfLoginNodes: ${slurm_cluster.nodes.login.size}
+            ${soperator_active_checks_override_block}
             %{~ if slurm_cluster.use_cuda13rc ~}
             activeCheckImage: "cr.eu-north1.nebius.cloud#soperator/active_checks:13.0.2-ubuntu24.04-nccl_tests2.17.6-89c97b0"
             %{~ endif ~}
@@ -799,6 +902,7 @@ resources:
           interval: 5m
           timeout: 5m
           version: ${operator_version}
+          featureGates: "${operator_feature_gates}"
           values:
             manager:
               resources:
@@ -850,3 +954,36 @@ resources:
             slack:
               webhookUrl: "${notifier.slack_webhook_url}"
           %{~ endif ~}
+
+        nfsServer:
+          enabled: ${slurm_cluster.nfs_in_k8s.enabled}
+          %{~ if slurm_cluster.nfs_in_k8s.enabled ~}
+          version: ${operator_version}
+          overrideValues:
+            image:
+              repository: ${soperator_image_repo}/nfs-server
+              tag: ${operator_version}
+            nameOverride: nfs-server
+            nfs:
+              sharedDirectory: "/exported"
+              shareOptions: "rw,fsid=0,async,no_subtree_check,no_auth_nlm,insecure,no_root_squash"
+            storage:
+              storageClassName: "${slurm_cluster.nfs_in_k8s.storage_class}"
+              size: ${slurm_cluster.nfs_in_k8s.size_gibibytes}Gi
+            storageClass:
+              name: nfs
+            resources:
+              requests:
+                memory: ${resources.nfs_server.requests.memory}Gi
+                cpu: ${resources.nfs_server.requests.cpu * 1000}m
+              limits:
+                memory: ${resources.nfs_server.limits.memory}Gi
+            %{~ if telemetry_enabled ~}
+            monitoring:
+              enabled: true
+              serviceMonitor:
+                enabled: true
+            %{~ endif ~}
+          %{~ endif ~}
+        tailscale:
+          enabled: ${tailscale_enabled}

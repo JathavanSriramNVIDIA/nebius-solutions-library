@@ -1,7 +1,7 @@
 locals {
   driver_presets = {
-    cuda12-8   = "cuda12.8"
-    cuda13-0   = "cuda13.0"
+    cuda12-8 = "cuda12.8"
+    cuda13-0 = "cuda13.0"
   }
 
   platform_driver_presets = tomap({

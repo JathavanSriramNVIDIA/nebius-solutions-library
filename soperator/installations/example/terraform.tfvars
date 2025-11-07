@@ -141,15 +141,20 @@ filestore_accounting = {
 
 # region nfs-server
 
-nfs = {
+# nfs = {
+#   enabled        = false
+#   size_gibibytes = 3720
+#   mount_path     = "/home"
+#   resource = {
+#     platform = "cpu-d3"
+#     preset   = "32vcpu-128gb"
+#   }
+#   public_ip = false
+# }
+
+nfs_in_k8s = {
   enabled        = true
   size_gibibytes = 3720
-  mount_path     = "/home"
-  resource = {
-    platform = "cpu-d3"
-    preset   = "32vcpu-128gb"
-  }
-  public_ip = false
 }
 
 # endregion nfs-server
@@ -170,6 +175,36 @@ slurm_operator_version = "1.22.3"
 # Is the version of soperator stable or not.
 # ---
 slurm_operator_stable = true
+
+# Feature gates for soperator. Example: "NodeSetWorkers=true"
+# By default, "" (empty).
+# ---
+# slurm_operator_feature_gates = "NodeSetWorkers=true"
+
+# Enable nodesets feature for Slurm cluster. When enabled, creates separate nodesets for each worker configuration.
+# ---
+slurm_nodesets_enabled = false
+
+# Partition configuration for nodesets. Used only when slurm_nodesets_enabled is true.
+# If empty, a default partition "main" with all nodes will be created.
+# ---
+# slurm_nodesets_partitions = [
+#   {
+#     name    = "main"
+#     is_all  = true
+#     config  = "Default=YES PriorityTier=10 MaxTime=INFINITE State=UP OverSubscribe=YES"
+#   },
+#   {
+#     name    = "hidden"
+#     is_all  = true
+#     config  = "Default=NO PriorityTier=10 PreemptMode=OFF Hidden=YES MaxTime=INFINITE State=UP OverSubscribe=YES"
+#   },
+#   {
+#     name    = "background"
+#     is_all  = true
+#     config  = "Nodes=ALL Default=NO PriorityTier=1 PreemptMode=OFF Hidden=YES MaxTime=INFINITE State=UP OverSubscribe=YES"
+#   },
+# ]
 
 # Type of the Slurm partition config. Could be either `default` or `custom`.
 # By default, "default".
@@ -269,32 +304,30 @@ slurm_nodeset_controller = {
 }
 
 # Configuration of Slurm Worker node sets.
-# There can be only one Worker node set for a while.
-# nodes_per_nodegroup allows you to split node set into equally-sized node groups to keep your cluster accessible and working
-# during maintenance. Example: nodes_per_nodegroup=3 for size=12 nodes will create 4 groups with 3 nodes in every group.
-# infiniband_fabric is required field
+# Multiple worker nodesets are supported with different hardware configurations.
+# Each nodeset will be automatically split into node groups of max 100 nodes with autoscaling enabled.
+# infiniband_fabric is required field for GPU clusters
 # ---
-slurm_nodeset_workers = [{
-  size                    = 16
-  nodes_per_nodegroup     = 4
-  max_unavailable_percent = 50
-  # max_surge_percent       = 50
-  # drain_timeout           = "10s"
-  resource = {
-    platform = "gpu-h100-sxm"
-    preset   = "8gpu-128vcpu-1600gb"
-  }
-  boot_disk = {
-    type                 = "NETWORK_SSD"
-    size_gibibytes       = 512
-    block_size_kibibytes = 4
-  }
-  gpu_cluster = {
-    infiniband_fabric = ""
-  }
-  # Change to preemptible = {} in case you want to use preemptible nodes
-  preemptible = null
-}]
+slurm_nodeset_workers = [
+  {
+    name = "worker"
+    size = 128
+    resource = {
+      platform = "gpu-h100-sxm"
+      preset   = "8gpu-128vcpu-1600gb"
+    }
+    boot_disk = {
+      type                 = "NETWORK_SSD"
+      size_gibibytes       = 512
+      block_size_kibibytes = 4
+    }
+    gpu_cluster = {
+      infiniband_fabric = ""
+    }
+    # Change to preemptible = {} in case you want to use preemptible nodes
+    preemptible = null
+  },
+]
 
 # Driverfull mode is used to run Slurm jobs with GPU drivers installed on the worker nodes.
 use_preinstalled_gpu_drivers = true
@@ -335,6 +368,16 @@ slurm_nodeset_accounting = {
 #----------------------------------------------------------------------------------------------------------------------#
 # region Login
 
+# Public or private ip for login node load balancer
+# By default, true (public).
+# ---
+slurm_login_public_ip = true
+
+# Whether to enable Tailscale init container on login pod.
+# By default, false
+# ---
+tailscale_enabled = false
+
 # Authorized keys accepted for connecting to Slurm login nodes via SSH as 'root' user.
 # ---
 slurm_login_ssh_root_public_keys = [
@@ -354,6 +397,21 @@ slurm_login_ssh_root_public_keys = [
 slurm_exporter_enabled = true
 
 # endregion Exporter
+
+#----------------------------------------------------------------------------------------------------------------------#
+#                                                      ActiveChecks                                                    #
+#----------------------------------------------------------------------------------------------------------------------#
+# region ActiveChecks
+
+# Scope of active checks. Defines what active checks should be checked during cluster bootstrap.
+# By default, prod.
+# All values: prod, dev, testing.
+# Defaults of the chart: https://github.com/nebius/soperator/blob/1a8e7e322a3dc84974b4f25890e26f8e19c20eb6/helm/soperator-activechecks/values.yaml#L28
+# Defaults override: https://github.com/nebius/nebius-solutions-library/blob/9e971de4d85aeb2799e71a163ed47c8480878314/soperator/modules/slurm/locals_active_checks.tf
+# ---
+active_checks_scope = "prod"
+
+# endregion ActiveChecks
 
 # endregion Nodes
 

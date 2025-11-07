@@ -191,6 +191,8 @@ export TF_VAR_iam_tenant_id="${NEBIUS_TENANT_ID}"
 export TF_VAR_iam_project_id="${NEBIUS_PROJECT_ID}"
 export TF_VAR_vpc_subnet_id="${NEBIUS_VPC_SUBNET_ID}"
 export TF_VAR_region="${NEBIUS_REGION}"
+export TF_VAR_parent_id="${NEBIUS_PROJECT_ID}"
+export TF_VAR_subnet_id="${NEBIUS_VPC_SUBNET_ID}"
 export TFE_PARALLELISM=20
 
 echo "Exported variables:"
@@ -206,10 +208,11 @@ echo "NEBIUS_REGION: ${NEBIUS_REGION}"
 
 # region Service account
 
-NEBIUS_SA_TERRAFORM_ID=$(nebius iam service-account list \
+NEBIUS_SA_TERRAFORM_ID=$(nebius iam service-account get-by-name \
   --parent-id "${NEBIUS_PROJECT_ID}" \
+  --name "${PRODUCT}-terraform-sa" \
   --format json \
-  | jq -r ".items[] | select(.metadata.name == \"${PRODUCT}-terraform-sa\").metadata.id")
+  | jq -r '.metadata.id')
 
 if [ -z "$NEBIUS_SA_TERRAFORM_ID" ]; then
   NEBIUS_SA_TERRAFORM_ID=$(nebius iam service-account create \

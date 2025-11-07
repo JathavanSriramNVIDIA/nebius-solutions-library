@@ -14,6 +14,12 @@ variable "operator_stable" {
   default     = true
 }
 
+variable "operator_feature_gates" {
+  description = "Feature gates for soperator. Example: 'NodeSetWorkers=true'"
+  type        = string
+  default     = ""
+}
+
 variable "iam_tenant_id" {
   description = "ID of the IAM tenant."
   type        = string
@@ -128,10 +134,10 @@ variable "resources" {
     error_message = "At least one worker node must be provided."
   }
 
-  # TODO: remove when node sets are supported
+  # Only enforce single worker nodeset when nodesets feature is disabled
   validation {
-    condition     = length(var.resources.worker) == 1
-    error_message = "Only one worker nodeset is supported."
+    condition     = var.slurm_nodesets_enabled || length(var.resources.worker) == 1
+    error_message = "Only one worker nodeset is supported when slurm_nodesets_enabled is false."
   }
 }
 
@@ -163,6 +169,18 @@ variable "login_allocation_id" {
   type        = string
   nullable    = true
   default     = null
+}
+
+variable "login_public_ip" {
+  description = "Public or private ip for login node load balancer"
+  type        = bool
+  default     = true
+}
+
+variable "tailscale_enabled" {
+  description = "Whether to enable tailscale init container on login pod"
+  type        = bool
+  default     = false
 }
 
 variable "login_sshd_config_map_ref_name" {
@@ -283,6 +301,44 @@ variable "nfs" {
   validation {
     condition     = var.nfs.enabled ? var.nfs.path != null && var.nfs.host != null : true
     error_message = "NFS path and host must be set."
+  }
+}
+
+variable "nfs_in_k8s" {
+  type = object({
+    enabled        = bool
+    size_gibibytes = optional(number)
+    storage_class  = optional(string, "compute-csi-network-ssd-io-m3-ext4")
+  })
+  default = {
+    enabled = false
+  }
+
+  validation {
+    condition     = var.nfs_in_k8s.enabled ? var.nfs_in_k8s.size_gibibytes != null : true
+    error_message = "NFS size_gibibytes must be set."
+  }
+
+  validation {
+    condition     = var.nfs_in_k8s.enabled ? var.nfs.enabled == false : true
+    error_message = "Only one of nfs or nfs_in_k8s should be set."
+  }
+
+  validation {
+    condition = (
+      (
+        var.nfs_in_k8s.enabled &&
+        var.nfs_in_k8s.storage_class == "compute-csi-network-ssd-io-m3-ext4" &&
+        var.nfs_in_k8s.size_gibibytes != null
+      )
+      ?
+      (
+        var.nfs_in_k8s.size_gibibytes % 93 == 0 &&
+        var.nfs_in_k8s.size_gibibytes <= 262074
+      )
+      : true
+    )
+    error_message = "NFS size must be a multiple of 93 GiB and maximum value is 262074 GiB"
   }
 }
 
@@ -664,6 +720,66 @@ variable "use_preinstalled_gpu_drivers" {
   type        = bool
   default     = false
 }
+
+# region ActiveChecks
+variable "active_checks_scope" {
+  type        = string
+  description = "Scope of active checks. Defines what active checks should be checked during cluster bootstrap."
+  default     = "prod"
+  validation {
+    condition     = contains(["dev", "testing", "prod"], var.active_checks_scope)
+    error_message = "active_checks_scope should be one of: dev, testing, prod."
+  }
+}
+# endregion ActiveChecks
+
+# region Nodesets
+
+variable "slurm_nodesets_enabled" {
+  description = "Enable nodesets feature for Slurm cluster. When enabled, creates separate nodesets for each worker configuration."
+  type        = bool
+  default     = false
+}
+
+variable "node_group_workers_v2" {
+  description = "Worker node groups specification for nodesets (v2)."
+  type = list(object({
+    name        = string
+    size        = number
+    min_size    = number
+    max_size    = number
+    autoscaling = bool
+    resource = object({
+      platform = string
+      preset   = string
+    })
+    boot_disk = object({
+      type                 = string
+      size_gibibytes       = number
+      block_size_kibibytes = number
+    })
+    gpu_cluster = optional(object({
+      infiniband_fabric = string
+    }))
+    preemptible   = optional(object({}))
+    nodeset_index = number
+    subset_index  = number
+  }))
+  default = []
+}
+
+variable "slurm_nodesets_partitions" {
+  description = "Partition configuration for nodesets. Used only when slurm_nodesets_enabled is true."
+  type = list(object({
+    name         = string
+    is_all       = optional(bool, false)
+    nodeset_refs = optional(list(string), [])
+    config       = string
+  }))
+  default = []
+}
+
+# endregion Nodesets
 
 variable "use_cuda13rc" {
   description = "Whether to use unstable image with CUDA 13."

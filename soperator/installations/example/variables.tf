@@ -106,6 +106,18 @@ data "nebius_vpc_v1_subnet" "this" {
   id = var.vpc_subnet_id
 }
 
+variable "slurm_login_public_ip" {
+  description = "Public or private ip for login node load balancer"
+  type        = bool
+  default     = true
+}
+
+variable "tailscale_enabled" {
+  description = "Whether to enable tailscale init container on login pod"
+  type        = bool
+  default     = false
+}
+
 variable "company_name" {
   description = "Name of the company. It is used for naming Slurm & K8s clusters."
   type        = string
@@ -415,6 +427,17 @@ resource "terraform_data" "check_nfs" {
   }
 }
 
+variable "nfs_in_k8s" {
+  type = object({
+    enabled        = bool
+    size_gibibytes = optional(number)
+    storage_class  = optional(string)
+  })
+  default = {
+    enabled = false
+  }
+}
+
 # endregion nfs-server
 
 # region k8s
@@ -468,6 +491,29 @@ variable "slurm_operator_stable" {
   description = "Is the version of soperator stable."
   type        = bool
   default     = true
+}
+
+variable "slurm_operator_feature_gates" {
+  description = "Feature gates for soperator. Example: 'NodeSetWorkers=true'"
+  type        = string
+  default     = ""
+}
+
+variable "slurm_nodesets_enabled" {
+  description = "Enable nodesets feature for Slurm cluster. When enabled, creates separate nodesets for each worker configuration."
+  type        = bool
+  default     = false
+}
+
+variable "slurm_nodesets_partitions" {
+  description = "Partition configuration for nodesets. Used only when slurm_nodesets_enabled is true."
+  type = list(object({
+    name         = string
+    is_all       = optional(bool, false)
+    nodeset_refs = optional(list(string), [])
+    config       = string
+  }))
+  default = []
 }
 
 # region PartitionConfiguration
@@ -603,11 +649,8 @@ variable "slurm_nodeset_controller" {
 variable "slurm_nodeset_workers" {
   description = "Configuration of Slurm Worker node sets."
   type = list(object({
-    size                    = number
-    nodes_per_nodegroup     = number
-    max_unavailable_percent = optional(number)
-    max_surge_percent       = optional(number)
-    drain_timeout           = optional(string)
+    name = string
+    size = number
     resource = object({
       platform = string
       preset   = string
@@ -624,9 +667,8 @@ variable "slurm_nodeset_workers" {
   }))
   nullable = false
   default = [{
-    size                    = 1
-    nodes_per_nodegroup     = 1
-    max_unavailable_percent = 50
+    name = "worker"
+    size = 1
     resource = {
       platform = "cpu-d3"
       preset   = "16vcpu-64gb"
@@ -638,18 +680,22 @@ variable "slurm_nodeset_workers" {
     }
   }]
 
-  # TODO: change to `>0` when node sets supported in soperator
-  validation {
-    condition     = length(var.slurm_nodeset_workers) == 1
-    error_message = "Only one worker node set must be provided for a while."
-  }
-
   validation {
     condition = alltrue([
       for worker in var.slurm_nodeset_workers :
-      (worker.size % worker.nodes_per_nodegroup == 0)
+      (worker.size > 0)
     ])
-    error_message = "Worker count must be divisible by nodes_per_nodegroup."
+    error_message = "Worker nodeset size must be greater than 0."
+  }
+
+  validation {
+    condition     = length(var.slurm_nodeset_workers) > 0
+    error_message = "At least one worker nodeset must be provided."
+  }
+
+  validation {
+    condition     = length(distinct([for worker in var.slurm_nodeset_workers : worker.name])) == length(var.slurm_nodeset_workers)
+    error_message = "All worker nodeset names must be unique."
   }
 
   validation {
@@ -1022,3 +1068,16 @@ variable "flux_interval" {
 }
 
 # endregion fluxcd
+
+# region ActiveChecks
+variable "active_checks_scope" {
+  type        = string
+  description = "Scope of active checks. Defines what active checks should be checked during cluster bootstrap."
+  default     = "prod"
+  validation {
+    condition     = contains(["dev", "testing", "prod"], var.active_checks_scope)
+    error_message = "active_checks_scope should be one of: dev, testing, prod."
+  }
+}
+
+# endregion ActiveChecks

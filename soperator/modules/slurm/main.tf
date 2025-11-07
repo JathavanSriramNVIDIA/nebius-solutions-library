@@ -57,18 +57,25 @@ resource "helm_release" "soperator_fluxcd_cm" {
   namespace  = var.flux_namespace
 
   values = [templatefile("${path.module}/templates/helm_values/terraform_fluxcd_values.yaml.tftpl", {
+    soperator_active_checks_override_block = indent(12, local.soperator_activechecks_override_yaml)
+
     backups_enabled    = var.backups_enabled
     telemetry_enabled  = var.telemetry_enabled
     accounting_enabled = var.accounting_enabled
     iam_tenant_id      = var.iam_tenant_id
     iam_project_id     = var.iam_project_id
 
+    soperator_helm_repo  = local.helm.repository.slurm
+    soperator_image_repo = local.image.repository
+
     dcgm_job_mapping_enabled = var.dcgm_job_mapping_enabled
 
+    tailscale_enabled       = var.tailscale_enabled
     apparmor_enabled        = var.use_default_apparmor_profile
     enable_soperator_checks = var.enable_soperator_checks
 
     operator_version                   = var.operator_version
+    operator_feature_gates             = var.operator_feature_gates
     cert_manager_version               = var.cert_manager_version
     k8up_version                       = var.k8up_version
     mariadb_operator_version           = var.mariadb_operator_version
@@ -139,7 +146,8 @@ resource "helm_release" "soperator_fluxcd_cm" {
 
       controller_state_on_filestore = var.controller_state_on_filestore
 
-      nfs = var.nfs
+      nfs        = var.nfs
+      nfs_in_k8s = var.nfs_in_k8s
 
       nodes = {
         accounting = {
@@ -163,19 +171,19 @@ resource "helm_release" "soperator_fluxcd_cm" {
         controller = {
           size = var.node_count.controller
           resources = {
-            cpu               = var.resources.controller.cpu_cores - local.resources.munge.cpu - local.resources.kruise_daemon.cpu
-            memory            = var.resources.controller.memory_gibibytes - local.resources.munge.memory - local.resources.kruise_daemon.memory
-            ephemeral_storage = var.resources.controller.ephemeral_storage_gibibytes - local.resources.munge.ephemeral_storage
+            cpu               = floor(var.resources.controller.cpu_cores - local.resources.munge.cpu - local.resources.kruise_daemon.cpu)
+            memory            = floor(var.resources.controller.memory_gibibytes - local.resources.munge.memory - local.resources.kruise_daemon.memory)
+            ephemeral_storage = floor(var.resources.controller.ephemeral_storage_gibibytes - local.resources.munge.ephemeral_storage)
           }
         }
 
         worker = {
-          size = one(var.node_count.worker)
+          size = var.slurm_nodesets_enabled ? 0 : var.node_count.worker[0]
           resources = {
-            cpu               = floor(one(var.resources.worker).cpu_cores - local.resources.munge.cpu) - local.resources.kruise_daemon.cpu
-            memory            = floor(one(var.resources.worker).memory_gibibytes - local.resources.munge.memory) - local.resources.kruise_daemon.memory
-            ephemeral_storage = floor(one(var.resources.worker).ephemeral_storage_gibibytes - local.resources.munge.ephemeral_storage)
-            gpus              = one(var.resources.worker).gpus
+            cpu               = floor(var.resources.worker[0].cpu_cores - local.resources.munge.cpu) - local.resources.kruise_daemon.cpu
+            memory            = floor(var.resources.worker[0].memory_gibibytes - local.resources.munge.memory) - local.resources.kruise_daemon.memory
+            ephemeral_storage = floor(var.resources.worker[0].ephemeral_storage_gibibytes - local.resources.munge.ephemeral_storage)
+            gpus              = var.resources.worker[0].gpus
           }
           shared_memory            = var.shared_memory_size_gibibytes
           slurm_node_extra         = local.slurm_node_extra
@@ -187,6 +195,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
           allocation_id            = var.login_allocation_id
           sshd_config_map_ref_name = var.login_sshd_config_map_ref_name
           root_public_keys         = var.login_ssh_root_public_keys
+          public_ip                = var.login_public_ip
           resources = {
             cpu               = floor(var.resources.login.cpu_cores - local.resources.munge.cpu - local.resources.kruise_daemon.cpu)
             memory            = floor(var.resources.login.memory_gibibytes - local.resources.munge.memory - local.resources.kruise_daemon.memory)
@@ -237,9 +246,15 @@ resource "helm_release" "soperator_fluxcd_cm" {
       slurm_operator      = local.resources.slurm_operator
       slurm_checks        = local.resources.slurm_checks
       dcgm_exporter       = local.resources.dcgm_exporter
+      nfs_server          = local.resources.nfs_server
     }
 
     vm_agent_queue_count = local.vm_agent_queue_count
+
+    slurm_nodesets_enabled    = var.slurm_nodesets_enabled
+    slurm_nodesets_partitions = var.slurm_nodesets_partitions
+    node_group_workers        = var.node_group_workers_v2
+    worker_resources          = var.resources.worker
 
   })]
 }
@@ -260,22 +275,18 @@ resource "helm_release" "flux2_sync" {
     name  = "gitRepository.spec.url"
     value = "https://github.com/${var.github_org}/${var.github_repository}"
   }
-
   set {
     name  = "gitRepository.spec.ref.${var.github_ref_type}"
     value = var.github_ref_value
   }
-
   set {
     name  = "gitRepository.spec.interval"
     value = var.flux_interval
   }
-
   set {
     name  = "kustomization.spec.interval"
     value = var.flux_interval
   }
-
   set {
     name  = "kustomization.spec.postBuild.substitute.soperator_version"
     value = var.operator_version

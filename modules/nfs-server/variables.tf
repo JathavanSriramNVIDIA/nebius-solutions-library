@@ -98,4 +98,4 @@ variable "number_raid_disks" {
   type        = number
   description = "Number of disks being used in raid"
   default     = 1
- }
+}

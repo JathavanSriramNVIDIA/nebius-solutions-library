@@ -41,7 +41,7 @@ jobs:
         if: steps.check_week.outputs.is_biweekly_run == 'true'
         id: get_version
         run: |
-          VERSION=$(cat version.yaml)
+          VERSION=$(date '+%Y-%m-%d')
           echo "TAG_VERSION=v$VERSION" >> $GITHUB_ENV
 
       - name: Create GitHub Release
@@ -55,22 +55,3 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-
-      - name: Update version file
-        if: steps.check_week.outputs.is_biweekly_run == 'true'
-        run: |
-          # Example using `sed` for a simple text file
-          VERSION=$(cat version.yaml)
-          NEW_VERSION=$(echo $VERSION | awk -F. -v OFS=. 'NF==1{print ++$NF}; NF>1{if(length($NF+1)>length($NF))$(NF-1)++; $NF=sprintf("%0*d", length($NF), ($NF+1)%(10^length($NF))); print}')
-          sed -i "s/.*/${NEW_VERSION}/" version.yaml
-
-      - name: Commit and push changes
-        if: steps.check_week.outputs.is_biweekly_run == 'true'
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add version.yaml # Replace with your version file
-          git commit -m "Update version"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

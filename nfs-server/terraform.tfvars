@@ -7,7 +7,6 @@
 #   "ssh-rsa AAAA..."  # Second user's public key
 # ]
 
-]
 nfs_ip_range = "192.168.0.0/16"
 
 # disk_type = "NETWORK_M3_IO"

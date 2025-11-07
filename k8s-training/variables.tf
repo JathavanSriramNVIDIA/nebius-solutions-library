@@ -54,7 +54,7 @@ variable "filestore_disk_type" {
 variable "filestore_disk_size" {
   description = "Filestore disk size in bytes."
   type        = number
-  default     = 1073741824
+  default     = 1 * 1024 * 1024 * 1024 # 1 GiB
 }
 
 variable "filestore_block_size" {
@@ -157,6 +157,12 @@ variable "gpu_disk_size" {
   default     = "1023"
 }
 
+variable "enable_gpu_cluster" {
+  description = "Infiniband's fabric name."
+  type        = bool
+  default     = true
+}
+
 variable "infiniband_fabric" {
   description = "Infiniband's fabric name."
   type        = string
@@ -233,20 +239,79 @@ variable "enable_kuberay" {
   default     = false
 }
 
+variable "kuberay_cpu_worker_image" {
+  description = "Docker image to use for CPU worker pods"
+  default     = null
+}
+
+variable "kuberay_min_cpu_replicas" {
+  description = "Minimum amount of kuberay CPU worker pods"
+  type        = number
+  default     = 0
+}
+
+variable "kuberay_max_cpu_replicas" {
+  description = "Minimum amount of kuberay CPU worker pods"
+  type        = number
+  default     = 0
+}
+
+variable "kuberay_cpu_resources" {
+  description = "Resources given to each CPU worker pod"
+  type = object({
+    cpus   = number
+    memory = number
+  })
+  default = null
+}
+
+#gpu worker pod setup
+variable "kuberay_gpu_worker_image" {
+  description = "Docker image to use for GPU worker pods"
+  default     = null
+}
 variable "kuberay_min_gpu_replicas" {
-  description = "Minimum amount of kuberay gpu worker pods"
+  description = "Minimum amount of kuberay GPU worker pods"
   type        = number
   default     = 0
 }
 
 variable "kuberay_max_gpu_replicas" {
-  description = "Minimum amount of kuberay gpu worker pods"
+  description = "Minimum amount of kuberay GPU worker pods"
   type        = number
-  default     = 1
+  default     = 0
+}
+
+variable "kuberay_gpu_resources" {
+  description = "Resources given to each GPU worker pod"
+  type = object({
+    cpus   = number
+    gpus   = number
+    memory = number
+  })
+  default = null
 }
 
 variable "mig_strategy" {
   description = "MIG strategy for GPU operator"
   type        = string
   default     = null
+}
+
+variable "cpu_nodes_preemptible" {
+  description = "Whether the cpu nodes should be preemptible"
+  type        = bool
+  default     = false
+}
+
+variable "gpu_nodes_preemptible" {
+  description = "Use preemptible VMs for GPU nodes"
+  type        = bool
+  default     = false
+}
+
+variable "gpu_health_cheker" {
+  description = "Use preemptible VMs for GPU nodes"
+  type        = bool
+  default     = true
 }
