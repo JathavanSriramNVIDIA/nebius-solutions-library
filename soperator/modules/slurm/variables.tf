@@ -92,6 +92,11 @@ variable "node_count" {
     worker     = list(number)
     login      = number
   })
+
+  validation {
+    condition     = var.node_count.controller == 1
+    error_message = "Only a single Slurm controller node is supported."
+  }
 }
 
 # endregion Nodes
@@ -438,6 +443,20 @@ variable "maintenance" {
   validation {
     condition     = contains(["downscaleAndDeletePopulateJail", "downscaleAndOverwritePopulateJail", "downscale", "none", "skipPopulateJail"], var.maintenance)
     error_message = "The maintenance variable must be one of: downscaleAndDeletePopulateJail, downscaleAndOverwritePopulateJail, downscale, none, skipPopulateJail."
+  }
+}
+
+variable "maintenance_ignore_node_groups" {
+  description = "List of node groups that Soperator should ignore for maintenance events. Supported values: controller, nfs, system, login, accounting."
+  type        = list(string)
+  default     = ["controller", "nfs"]
+
+  validation {
+    condition = alltrue([
+      for group in var.maintenance_ignore_node_groups :
+      contains(["system", "controller", "login", "accounting", "nfs"], group)
+    ])
+    error_message = "maintenance_ignore_node_groups must only contain: system, controller, login, accounting, nfs."
   }
 }
 

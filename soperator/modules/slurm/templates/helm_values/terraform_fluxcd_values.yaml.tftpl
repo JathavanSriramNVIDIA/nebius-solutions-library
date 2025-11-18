@@ -929,6 +929,8 @@ resources:
             values:
               checks:
                 manager:
+                  env:
+                    maintenanceIgnoreNodeLabels: "${join(",", slurm_cluster.maintenance_ignore_node_labels)}"
                   resources:
                     requests:
                       memory: ${resources.slurm_operator.requests.memory}Gi

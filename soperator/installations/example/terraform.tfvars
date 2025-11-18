@@ -299,7 +299,7 @@ slurm_nodeset_system = {
 # Configuration of Slurm Controller node set.
 # ---
 slurm_nodeset_controller = {
-  size = 2
+  size = 1
   resource = {
     platform = "cpu-d3"
     preset   = "4vcpu-16gb"
@@ -449,6 +449,12 @@ active_checks_scope = "prod"
 # By default, 64.
 # ---
 slurm_shared_memory_size_gibibytes = 1024
+
+# Node groups that Soperator should ignore during maintenance events.
+# These ignored maintenance events will be handled by mk8s control plane instead.
+# Supported values: controller, nfs, system, login, accounting.
+# ---
+maintenance_ignore_node_groups = ["controller", "nfs"]
 
 # endregion Config
 #----------------------------------------------------------------------------------------------------------------------#
