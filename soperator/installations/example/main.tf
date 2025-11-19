@@ -37,7 +37,7 @@ locals {
       name          = nodeset.name
       size          = min(100, nodeset.size - subset * 100)
       min_size      = 0
-      max_size      = min(100, nodeset.size - subset * 100)
+      max_size      = max(1, min(100, nodeset.size - subset * 100))
       autoscaling   = true
       resource      = nodeset.resource
       boot_disk     = nodeset.boot_disk
@@ -457,7 +457,12 @@ module "slurm" {
 
   slurm_nodesets_enabled    = var.slurm_nodesets_enabled
   slurm_nodesets_partitions = var.slurm_nodesets_partitions
-  node_group_workers_v2     = local.node_group_workers_v2
+  worker_nodesets = [for nodeset in var.slurm_nodeset_workers : {
+    name            = nodeset.name
+    replicas        = nodeset.size
+    max_unavailable = "20%"
+    features        = []
+  }]
 
   login_allocation_id            = module.k8s.static_ip_allocation_id
   login_public_ip                = var.slurm_login_public_ip

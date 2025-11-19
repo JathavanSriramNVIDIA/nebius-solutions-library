@@ -257,9 +257,10 @@ resource "helm_release" "soperator_fluxcd_cm" {
 
     slurm_nodesets_enabled    = var.slurm_nodesets_enabled
     slurm_nodesets_partitions = var.slurm_nodesets_partitions
-    node_group_workers        = var.node_group_workers_v2
-    worker_resources          = var.resources.worker
 
+    releases = [
+      local_file.flux_release_rendered_nodesets.content,
+    ]
   })]
 }
 
