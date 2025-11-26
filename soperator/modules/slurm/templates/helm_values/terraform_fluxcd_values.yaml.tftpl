@@ -3,6 +3,8 @@ resources:
     kind: ConfigMap
     metadata:
       name: terraform-fluxcd-values
+      labels:
+        reconcile.fluxcd.io/watch: Enabled
     data:
       values.yaml: |
         helmRepository:

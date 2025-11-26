@@ -3,6 +3,8 @@ resources:
     kind: ConfigMap
     metadata:
       name: soperator-fluxcd
+      labels:
+        reconcile.fluxcd.io/watch: Enabled
     data:
       values.yaml: |
         # Empty config map for ad-hoc values overrides
