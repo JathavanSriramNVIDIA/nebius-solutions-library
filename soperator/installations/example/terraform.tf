@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">=1.8.0"
+  required_version = ">=1.12.0"
 
   required_providers {
     nebius = {
@@ -15,6 +15,11 @@ terraform {
     units = {
       source  = "dstaroff/units"
       version = ">=1.1.1"
+    }
+
+    string-functions = {
+      source  = "random-things/string-functions"
+      version = "0.5.0"
     }
 
     kubernetes = {
@@ -33,6 +38,8 @@ provider "nebius" {
 }
 
 provider "units" {}
+
+provider "string-functions" {}
 
 provider "kubernetes" {
   host                   = module.k8s.control_plane.public_endpoint

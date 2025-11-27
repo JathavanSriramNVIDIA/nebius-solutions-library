@@ -14,12 +14,6 @@ variable "operator_stable" {
   default     = true
 }
 
-variable "operator_feature_gates" {
-  description = "Feature gates for soperator. Example: 'NodeSetWorkers=true'"
-  type        = string
-  default     = ""
-}
-
 variable "iam_tenant_id" {
   description = "ID of the IAM tenant."
   type        = string
@@ -776,29 +770,14 @@ variable "slurm_nodesets_enabled" {
   default     = false
 }
 
-variable "node_group_workers_v2" {
-  description = "Worker node groups specification for nodesets (v2)."
+variable "worker_nodesets" {
   type = list(object({
-    name        = string
-    size        = number
-    min_size    = number
-    max_size    = number
-    autoscaling = bool
-    resource = object({
-      platform = string
-      preset   = string
-    })
-    boot_disk = object({
-      type                 = string
-      size_gibibytes       = number
-      block_size_kibibytes = number
-    })
-    gpu_cluster = optional(object({
-      infiniband_fabric = string
-    }))
-    preemptible   = optional(object({}))
-    nodeset_index = number
-    subset_index  = number
+    name             = string
+    replicas         = number
+    max_unavailable  = string
+    features         = list(string)
+    cpu_topology     = map(number)
+    create_partition = bool
   }))
   default = []
 }

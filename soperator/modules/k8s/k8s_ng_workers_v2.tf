@@ -62,8 +62,9 @@ resource "nebius_mk8s_v1_node_group" "worker_v2" {
     metadata = {
       labels = merge(
         module.labels.label_jail,
+        module.labels.label_nodeset_worker,
         tomap({
-          (module.labels.key_slurm_nodeset_name) = var.node_group_workers_v2[count.index].name
+          (module.labels.key_slurm_nodeset_name_name) = var.node_group_workers_v2[count.index].name
         }),
         local.node_group_workload_label_v2.worker[count.index],
         (local.node_group_gpu_present_v2.worker[count.index] ? module.labels.label_nebius_gpu : {}),

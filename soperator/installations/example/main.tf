@@ -37,7 +37,7 @@ locals {
       name          = nodeset.name
       size          = min(100, nodeset.size - subset * 100)
       min_size      = 0
-      max_size      = min(100, nodeset.size - subset * 100)
+      max_size      = max(1, min(100, nodeset.size - subset * 100))
       autoscaling   = true
       resource      = nodeset.resource
       boot_disk     = nodeset.boot_disk
@@ -323,9 +323,8 @@ module "slurm" {
   name                = local.slurm_cluster_name
   k8s_cluster_context = module.k8s.cluster_context
 
-  operator_version       = var.slurm_operator_version
-  operator_stable        = var.slurm_operator_stable
-  operator_feature_gates = var.slurm_operator_feature_gates
+  operator_version = var.slurm_operator_version
+  operator_stable  = var.slurm_operator_stable
 
   maintenance                    = var.maintenance
   maintenance_ignore_node_groups = var.maintenance_ignore_node_groups
@@ -458,7 +457,20 @@ module "slurm" {
 
   slurm_nodesets_enabled    = var.slurm_nodesets_enabled
   slurm_nodesets_partitions = var.slurm_nodesets_partitions
-  node_group_workers_v2     = local.node_group_workers_v2
+  worker_nodesets = [for nodeset in var.slurm_nodeset_workers : {
+    name            = nodeset.name
+    replicas        = nodeset.size
+    max_unavailable = "20%"
+    features = concat(
+      [
+        provider::string-functions::snake_case(nodeset.resource.platform),
+        provider::string-functions::snake_case(nodeset.boot_disk.type),
+      ],
+      nodeset.features != null ? nodeset.features : []
+    )
+    cpu_topology     = module.resources.cpu_topology_by_platform[nodeset.resource.platform][nodeset.resource.preset]
+    create_partition = nodeset.create_partition != null ? nodeset.create_partition : false
+  }]
 
   login_allocation_id            = module.k8s.static_ip_allocation_id
   login_public_ip                = var.slurm_login_public_ip

@@ -74,8 +74,10 @@ resource "helm_release" "soperator_fluxcd_cm" {
     apparmor_enabled        = var.use_default_apparmor_profile
     enable_soperator_checks = var.enable_soperator_checks
 
-    operator_version                   = var.operator_version
-    operator_feature_gates             = var.operator_feature_gates
+    operator_version = var.operator_version
+    operator_feature_gates = join(",", distinct(compact([
+      var.slurm_nodesets_enabled ? "NodeSetWorkers=true" : null,
+    ])))
     cert_manager_version               = var.cert_manager_version
     k8up_version                       = var.k8up_version
     mariadb_operator_version           = var.mariadb_operator_version
@@ -255,9 +257,11 @@ resource "helm_release" "soperator_fluxcd_cm" {
 
     slurm_nodesets_enabled    = var.slurm_nodesets_enabled
     slurm_nodesets_partitions = var.slurm_nodesets_partitions
-    node_group_workers        = var.node_group_workers_v2
-    worker_resources          = var.resources.worker
+    nodesets                  = var.worker_nodesets
 
+    releases = [
+      local_file.flux_release_rendered_nodesets.content,
+    ]
   })]
 }
 
