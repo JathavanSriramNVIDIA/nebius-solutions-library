@@ -190,6 +190,7 @@ unset NEBIUS_IAM_TOKEN
 export NEBIUS_IAM_TOKEN=$(nebius --profile ${self.triggers_replace.o11y_profile} iam get-access-token)
 
 PROJECT_ID=$(nebius iam project get-by-name --parent-id ${self.triggers_replace.o11y_iam_tenant_id} --name ${self.triggers_replace.o11y_resources_name} --format json | jq -r .metadata.id)
+O11YWORKSPACE_ID=$(echo "$PROJECT_ID" | sed 's#project-#o11yworkspace-#')
 
 export NEBIUS_IAM_TOKEN=$NEBIUS_IAM_TOKEN_BKP
 
@@ -205,6 +206,9 @@ data:
     observability:
       logsProjectId: $PROJECT_ID
       metricsProjectId: ${self.triggers_replace.iam_project_id}
+    soperatorActiveChecks:
+      overrideValues:
+        extraCommentJson: "{\"o11y_workspace\": \"$O11YWORKSPACE_ID\"}"
 EOF
 EOT
   }
