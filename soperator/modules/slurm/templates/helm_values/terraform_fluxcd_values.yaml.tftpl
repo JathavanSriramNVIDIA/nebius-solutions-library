@@ -771,7 +771,7 @@ resources:
 
             %{~ if slurm_cluster.use_cuda13rc ~}
             images:
-              populateJail: "cr.eu-north1.nebius.cloud/soperator-unstable/populate_jail:1.23.0-cuda13"
+              populateJail: "cr.eu-north1.nebius.cloud/soperator-unstable/populate_jail:1.23.0-noble-slurm25.05.4-e6539759"
             %{~ endif ~}
 
           slurmClusterStorage:
