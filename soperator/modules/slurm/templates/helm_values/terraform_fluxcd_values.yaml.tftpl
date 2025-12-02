@@ -547,7 +547,7 @@ resources:
                   - name: ensure-node-local-jail-submount-${sub_mount.name}-${sub_mount.filesystem_type}
                     image: cr.eu-north1.nebius.cloud/soperator/busybox
                     volumeMounts: [{ name: '${sub_mount.name}', mountPath: /volume-mount }]
-                    command: ["grep", ' /volume-mount ${sub_mount.filesystem_type} ', "/proc/mounts"]
+                    command: ["sh", "-c", "grep ' /volume-mount ${sub_mount.filesystem_type} ' /proc/mounts && chmod 777 /volume-mount"]
                   %{~ endfor ~}
                   %{~ if slurm_cluster.node_local_image_storage.enabled ~}
                   - name: ensure-node-local-image-storage-${slurm_cluster.node_local_image_storage.spec.filesystem_type}
