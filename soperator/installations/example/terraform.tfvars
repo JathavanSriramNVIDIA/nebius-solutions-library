@@ -160,9 +160,11 @@ filestore_accounting = {
 # }
 
 nfs_in_k8s = {
-  enabled        = true
-  version        = "1.2.0" # change after first release with separate NFS versioning
-  size_gibibytes = 3720
+  enabled         = true
+  version         = "1.2.0" # change after first release with separate NFS versioning
+  size_gibibytes  = 3720
+  disk_type       = "NETWORK_SSD_IO_M3"
+  filesystem_type = "ext4"
 }
 
 # endregion nfs-server
