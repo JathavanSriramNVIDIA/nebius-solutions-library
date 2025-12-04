@@ -40,6 +40,8 @@ locals {
 
     jail = tomap({ (local.label_key.jail) = ("true") })
 
+    exclude_from_external_lb = tomap({ ("node.kubernetes.io/exclude-from-external-load-balancers") = ("true") })
+
     nodeset = {
       system     = tomap({ (local.label_key.slurm_nodeset) = (local.const.name.nodesets.system) })
       controller = tomap({ (local.label_key.slurm_nodeset) = (local.const.name.nodesets.controller) })

@@ -24,6 +24,7 @@ resource "nebius_mk8s_v1_node_group" "system" {
         module.labels.label_nodeset_system,
         module.labels.label_workload_cpu,
         module.labels.label_jail,
+        module.labels.label_exclude_from_external_lb,
       )
     }
 
