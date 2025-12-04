@@ -30,7 +30,15 @@ nodesets:
             - ${feature}
             %{~ endfor ~}
           %{~ endif ~}
-          static: "CPUs=${nodeset.cpu_topology.cpus} Boards=${nodeset.cpu_topology.boards} SocketsPerBoard=${nodeset.cpu_topology.sockets_per_board} CoresPerSocket=${nodeset.cpu_topology.cores_per_socket} ThreadsPerCore=${nodeset.cpu_topology.threads_per_core} %{~ if resources[i].gpus > 0 } Gres=gpu:${resources[i].gpus}%{~ endif ~}"
+          static: "${join(" ", compact([
+            format("CPUs=%d", nodeset.cpu_topology.cpus),
+            format("Boards=%d", nodeset.cpu_topology.boards),
+            format("SocketsPerBoard=%d", nodeset.cpu_topology.sockets_per_board),
+            format("CoresPerSocket=%d", nodeset.cpu_topology.cores_per_socket),
+            format("ThreadsPerCore=%d", nodeset.cpu_topology.threads_per_core),
+            resources[i].gpus > 0 ? format("Gres=gpu:%s:%d", nodeset.gres_name, resources[i].gpus) : "",
+          ]))}"
+          dynamic: "${extra}"
 
         slurmd:
           resources:

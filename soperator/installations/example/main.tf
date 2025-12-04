@@ -220,11 +220,6 @@ module "k8s" {
   }
 }
 
-moved {
-  from = module.k8s_storage_class[0]
-  to   = module.k8s_storage_class
-}
-
 module "nvidia_operator_network" {
   count = module.k8s.gpu_involved && !var.use_preinstalled_gpu_drivers ? 1 : 0
 
@@ -458,6 +453,7 @@ module "slurm" {
       nodeset.features != null ? nodeset.features : []
     )
     cpu_topology     = module.resources.cpu_topology_by_platform[nodeset.resource.platform][nodeset.resource.preset]
+    gres_name        = lookup(module.resources.gres_name_by_platform, nodeset.resource.platform, null)
     create_partition = nodeset.create_partition != null ? nodeset.create_partition : false
   }]
 

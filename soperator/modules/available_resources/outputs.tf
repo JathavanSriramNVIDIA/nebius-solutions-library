@@ -50,3 +50,8 @@ output "cpu_topology_by_platform" {
   description = "CPU topologies preset by platform."
   value       = local.cpu_topologies_by_platforms
 }
+
+output "gres_name_by_platform" {
+  description = "GRes name by platform."
+  value       = local.gres_by_platforms
+}

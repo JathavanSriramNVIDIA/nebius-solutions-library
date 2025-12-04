@@ -47,5 +47,7 @@ resource "local_file" "flux_release_rendered_nodesets" {
     sshd = {
       config_map_ref = var.worker_sshd_config_map_ref_name
     }
+
+    extra = local.slurm_node_extra
   })
 }

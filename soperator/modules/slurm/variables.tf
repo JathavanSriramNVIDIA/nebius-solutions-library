@@ -757,6 +757,7 @@ variable "worker_nodesets" {
     max_unavailable  = string
     features         = list(string)
     cpu_topology     = map(number)
+    gres_name        = optional(string)
     create_partition = bool
   }))
   default = []
