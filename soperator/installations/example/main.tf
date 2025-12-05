@@ -8,6 +8,10 @@ locals {
     nfs        = var.slurm_nodeset_nfs != null ? module.resources.by_platform[var.slurm_nodeset_nfs.resource.platform][var.slurm_nodeset_nfs.resource.preset] : null
   }
 
+  # keep in sync with helm chart
+  # https://github.com/nebius/soperator/blob/main/helm/storageclasses/templates/storageclasses.yaml#L4
+  storage_class_prefix = "compute-csi"
+
   slurm_cluster_name = "soperator"
   flux_namespace     = "flux-system"
   k8s_cluster_name   = format("soperator-%s", var.company_name)
@@ -37,7 +41,7 @@ locals {
       name          = nodeset.name
       size          = min(100, nodeset.size - subset * 100)
       min_size      = 0
-      max_size      = min(100, nodeset.size - subset * 100)
+      max_size      = max(1, min(100, nodeset.size - subset * 100))
       autoscaling   = true
       resource      = nodeset.resource
       boot_disk     = nodeset.boot_disk
@@ -216,42 +220,6 @@ module "k8s" {
   }
 }
 
-module "k8s_storage_class" {
-  depends_on = [
-    module.k8s,
-  ]
-
-  source = "../../modules/k8s/storage_class"
-
-  storage_class_requirements = concat(
-    [{
-      disk_type       = module.resources.disk_types.network_ssd
-      filesystem_type = module.resources.filesystem_types.ext4
-    }],
-    [for sm in var.node_local_jail_submounts : {
-      disk_type       = sm.disk_type
-      filesystem_type = sm.filesystem_type
-    }],
-    !var.node_local_image_disk.enabled ? [] : [{
-      disk_type       = var.node_local_image_disk.spec.disk_type
-      filesystem_type = var.node_local_image_disk.spec.filesystem_type
-    }],
-    !var.nfs_in_k8s.enabled ? [] : [{
-      disk_type       = var.nfs_in_k8s.disk_type
-      filesystem_type = var.nfs_in_k8s.filesystem_type
-    }]
-  )
-
-  providers = {
-    kubernetes = kubernetes
-  }
-}
-
-moved {
-  from = module.k8s_storage_class[0]
-  to   = module.k8s_storage_class
-}
-
 module "nvidia_operator_network" {
   count = module.k8s.gpu_involved && !var.use_preinstalled_gpu_drivers ? 1 : 0
 
@@ -310,7 +278,6 @@ module "o11y" {
 module "slurm" {
   depends_on = [
     module.k8s,
-    module.k8s_storage_class,
     module.o11y,
     module.fluxcd,
     module.backups,
@@ -326,10 +293,10 @@ module "slurm" {
   cluster_name        = var.company_name
   name                = local.slurm_cluster_name
   k8s_cluster_context = module.k8s.cluster_context
+  k8s_cluster_id      = module.k8s.cluster_id
 
-  operator_version       = var.slurm_operator_version
-  operator_stable        = var.slurm_operator_stable
-  operator_feature_gates = var.slurm_operator_feature_gates
+  operator_version = var.slurm_operator_version
+  operator_stable  = var.slurm_operator_stable
 
   maintenance                    = var.maintenance
   maintenance_ignore_node_groups = var.maintenance_ignore_node_groups
@@ -420,14 +387,14 @@ module "slurm" {
     size_gibibytes     = sm.size_gibibytes
     disk_type          = sm.disk_type
     filesystem_type    = sm.filesystem_type
-    storage_class_name = module.k8s_storage_class.storage_classes[sm.disk_type][sm.filesystem_type]
+    storage_class_name = replace("${local.storage_class_prefix}-${lower(sm.disk_type)}-${lower(sm.filesystem_type)}", "_", "-")
   }]
   node_local_image_storage = {
     enabled = var.node_local_image_disk.enabled
     spec = var.node_local_image_disk.enabled ? {
       size_gibibytes     = var.node_local_image_disk.spec.size_gibibytes
       filesystem_type    = var.node_local_image_disk.spec.filesystem_type
-      storage_class_name = module.k8s_storage_class.storage_classes[var.node_local_image_disk.spec.disk_type][var.node_local_image_disk.spec.filesystem_type]
+      storage_class_name = replace("${local.storage_class_prefix}-${lower(var.node_local_image_disk.spec.disk_type)}-${lower(var.node_local_image_disk.spec.filesystem_type)}", "_", "-")
     } : null
   }
 
@@ -449,10 +416,23 @@ module "slurm" {
   exporter_enabled    = var.slurm_exporter_enabled
   rest_enabled        = var.slurm_rest_enabled
   accounting_enabled  = var.accounting_enabled
-  backups_enabled     = local.backups_enabled
   telemetry_enabled   = var.telemetry_enabled
   public_o11y_enabled = var.public_o11y_enabled
   soperator_notifier  = var.soperator_notifier
+
+  backups_enabled = local.backups_enabled
+  backups_config = {
+    secret_name    = local.backups_enabled ? module.backups[0].secret_name : null
+    password       = var.backups_password
+    schedule       = var.backups_schedule
+    prune_schedule = var.backups_prune_schedule
+    retention      = var.backups_retention
+    storage = {
+      bucket : local.backups_enabled ? module.backups_store[0].name : null,
+      endpoint : local.backups_enabled ? module.backups_store[0].endpoint : null,
+      bucket_id : local.backups_enabled ? module.backups_store[0].bucket_id : null
+    }
+  }
 
   slurmdbd_config         = var.slurmdbd_config
   slurm_accounting_config = var.slurm_accounting_config
@@ -467,7 +447,21 @@ module "slurm" {
 
   slurm_nodesets_enabled    = var.slurm_nodesets_enabled
   slurm_nodesets_partitions = var.slurm_nodesets_partitions
-  node_group_workers_v2     = local.node_group_workers_v2
+  worker_nodesets = [for nodeset in var.slurm_nodeset_workers : {
+    name            = nodeset.name
+    replicas        = nodeset.size
+    max_unavailable = "20%"
+    features = concat(
+      [
+        provider::string-functions::snake_case(nodeset.resource.platform),
+        provider::string-functions::snake_case(nodeset.boot_disk.type),
+      ],
+      nodeset.features != null ? nodeset.features : []
+    )
+    cpu_topology     = module.resources.cpu_topology_by_platform[nodeset.resource.platform][nodeset.resource.preset]
+    gres_name        = lookup(module.resources.gres_name_by_platform, nodeset.resource.platform, null)
+    create_partition = nodeset.create_partition != null ? nodeset.create_partition : false
+  }]
 
   login_allocation_id            = module.k8s.static_ip_allocation_id
   login_public_ip                = var.slurm_login_public_ip
@@ -475,13 +469,7 @@ module "slurm" {
   login_sshd_config_map_ref_name = var.slurm_login_sshd_config_map_ref_name
   login_ssh_root_public_keys     = var.slurm_login_ssh_root_public_keys
 
-  github_org              = var.github_org
-  github_repository       = var.github_repository
-  github_ref_type         = var.slurm_operator_stable ? "tag" : "branch"
-  github_ref_value        = var.slurm_operator_stable ? var.slurm_operator_version : "main"
-  flux_namespace          = local.flux_namespace
-  flux_interval           = var.flux_interval
-  flux_kustomization_path = var.slurm_operator_stable ? "fluxcd/environment/nebius-cloud/prod" : "fluxcd/environment/nebius-cloud/dev"
+  flux_namespace = local.flux_namespace
 
   providers = {
     helm = helm
@@ -530,19 +518,11 @@ module "backups" {
   iam_project_id      = var.iam_project_id
   iam_tenant_id       = var.iam_tenant_id
   instance_name       = local.k8s_cluster_name
-  flux_namespace      = local.flux_namespace
   soperator_namespace = local.slurm_cluster_name
-  bucket_name         = module.backups_store[count.index].name
-  bucket_endpoint     = module.backups_store[count.index].endpoint
-
-  backups_password  = var.backups_password
-  backups_schedule  = var.backups_schedule
-  prune_schedule    = var.backups_prune_schedule
-  backups_retention = var.backups_retention
+  backups_password    = var.backups_password
 
   providers = {
     nebius = nebius
-    helm   = helm
   }
 
   depends_on = [

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 parent_id=$PARENT_ID
 page_size=100

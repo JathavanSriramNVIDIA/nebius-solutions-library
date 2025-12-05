@@ -1,14 +1,25 @@
 locals {
   # GPU clusters for v2 worker nodes (when nodesets are enabled)
   gpu_clusters_v2 = var.slurm_nodesets_enabled ? {
-    for cluster in distinct([for worker in var.node_group_workers_v2 :
+    for gpu_placement in distinct([for worker in var.node_group_workers_v2 :
       {
-        nodeset = worker.name
-        fabric  = worker.gpu_cluster.infiniband_fabric
+        fabric = worker.gpu_cluster.infiniband_fabric
       }
       if worker.gpu_cluster != null
     ]) :
-    cluster.nodeset => cluster.fabric
+    gpu_placement.fabric => {
+      fabric = gpu_placement.fabric
+    }
+  } : {}
+  gpu_clusters_by_nodegroup = var.slurm_nodesets_enabled ? {
+    for ng in distinct([for worker in var.node_group_workers_v2 :
+      {
+        name   = worker.name
+        fabric = worker.gpu_cluster.infiniband_fabric
+      }
+      if worker.gpu_cluster != null
+    ]) :
+    ng.name => ng.fabric
   } : {}
 }
 
@@ -17,9 +28,9 @@ resource "nebius_compute_v1_gpu_cluster" "this_v2" {
 
   parent_id = var.iam_project_id
 
-  name = "${var.name}-${each.key}"
+  name = "${var.name}-${each.value.fabric}"
 
-  infiniband_fabric = each.value
+  infiniband_fabric = each.value.fabric
 
   lifecycle {
     ignore_changes = [
@@ -82,8 +93,9 @@ resource "nebius_mk8s_v1_node_group" "worker_v2" {
     metadata = {
       labels = merge(
         module.labels.label_jail,
+        module.labels.label_nodeset_worker,
         tomap({
-          (module.labels.key_slurm_nodeset_name) = var.node_group_workers_v2[count.index].name
+          (module.labels.key_slurm_nodeset_name_name) = var.node_group_workers_v2[count.index].name
         }),
         local.node_group_workload_label_v2.worker[count.index],
         (local.node_group_gpu_present_v2.worker[count.index] ? module.labels.label_nebius_gpu : {}),
@@ -102,7 +114,7 @@ resource "nebius_mk8s_v1_node_group" "worker_v2" {
     }
     gpu_cluster = (local.node_group_gpu_cluster_compatible_v2.worker[count.index]
       ? (var.node_group_workers_v2[count.index].gpu_cluster != null
-        ? nebius_compute_v1_gpu_cluster.this_v2[var.node_group_workers_v2[count.index].name]
+        ? nebius_compute_v1_gpu_cluster.this_v2[local.gpu_clusters_by_nodegroup[var.node_group_workers_v2[count.index].name]]
         : null
       )
       : null
@@ -110,8 +122,8 @@ resource "nebius_mk8s_v1_node_group" "worker_v2" {
 
     preemptible = var.node_group_workers_v2[count.index].preemptible
 
-    gpu_settings = var.use_preinstalled_gpu_drivers ? {
-      drivers_preset = "cuda12.8"
+    gpu_settings = (var.use_preinstalled_gpu_drivers && local.node_group_gpu_present_v2.worker[count.index]) ? {
+      drivers_preset = module.resources.driver_preset_by_platform[var.node_group_workers_v2[count.index].resource.platform]
     } : null
 
     boot_disk = {

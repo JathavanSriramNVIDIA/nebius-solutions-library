@@ -14,12 +14,6 @@ variable "operator_stable" {
   default     = true
 }
 
-variable "operator_feature_gates" {
-  description = "Feature gates for soperator. Example: 'NodeSetWorkers=true'"
-  type        = string
-  default     = ""
-}
-
 variable "iam_tenant_id" {
   description = "ID of the IAM tenant."
   type        = string
@@ -34,6 +28,11 @@ variable "k8s_cluster_context" {
   description = "Context name of the K8s cluster."
   type        = string
   nullable    = false
+}
+
+variable "k8s_cluster_id" {
+  description = "ID of the mk8s cluster."
+  type        = string
 }
 
 # region PartitionConfiguration
@@ -642,41 +641,6 @@ variable "sconfigcontroller" {
 # endregion SConfigController
 
 # region fluxcd
-variable "github_org" {
-  description = "The GitHub organization."
-  type        = string
-  default     = "nebius"
-}
-
-variable "github_repository" {
-  description = "The GitHub repository."
-  type        = string
-  default     = "soperator"
-}
-
-variable "github_ref_type" {
-  description = "The GitHub ref type (branch, tag, etc.)."
-  type        = string
-  default     = "branch"
-}
-variable "github_ref_value" {
-  description = "The GitHub ref value (main, v1.22.0, etc.)."
-  type        = string
-  default     = "main"
-}
-
-variable "flux_interval" {
-  description = "The interval for Flux to check for changes."
-  type        = string
-  default     = "1m"
-}
-
-variable "flux_kustomization_path" {
-  description = "The name of the Flux customization."
-  type        = string
-  default     = "fluxcd/environment/nebius-cloud"
-}
-
 variable "cert_manager_version" {
   description = "The version of the cert-manager."
   type        = string
@@ -692,7 +656,7 @@ variable "k8up_version" {
 variable "mariadb_operator_version" {
   description = "The version of the mariadb operator."
   type        = string
-  default     = ""
+  default     = "25.10.2"
 }
 
 variable "opentelemetry_collector_version" {
@@ -743,6 +707,21 @@ variable "backups_enabled" {
   default     = false
 }
 
+variable "backups_config" {
+  description = "Configuration for backups."
+  type = object({
+    secret_name    = string
+    password       = string
+    schedule       = string
+    prune_schedule = string
+    retention      = map(any)
+    storage = object({
+      bucket    = string
+      endpoint  = string
+      bucket_id = string
+    })
+  })
+}
 
 variable "region" {
   description = "Region where the Slurm cluster is deployed."
@@ -776,29 +755,15 @@ variable "slurm_nodesets_enabled" {
   default     = false
 }
 
-variable "node_group_workers_v2" {
-  description = "Worker node groups specification for nodesets (v2)."
+variable "worker_nodesets" {
   type = list(object({
-    name        = string
-    size        = number
-    min_size    = number
-    max_size    = number
-    autoscaling = bool
-    resource = object({
-      platform = string
-      preset   = string
-    })
-    boot_disk = object({
-      type                 = string
-      size_gibibytes       = number
-      block_size_kibibytes = number
-    })
-    gpu_cluster = optional(object({
-      infiniband_fabric = string
-    }))
-    preemptible   = optional(object({}))
-    nodeset_index = number
-    subset_index  = number
+    name             = string
+    replicas         = number
+    max_unavailable  = string
+    features         = list(string)
+    cpu_topology     = map(number)
+    gres_name        = optional(string)
+    create_partition = bool
   }))
   default = []
 }
