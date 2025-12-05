@@ -405,7 +405,12 @@ module "slurm" {
     mount_path = var.nfs.enabled ? var.nfs.mount_path : null
   }
 
-  nfs_in_k8s             = var.nfs_in_k8s
+  nfs_in_k8s = {
+    enabled        = var.nfs_in_k8s.enabled
+    version        = var.nfs_in_k8s.version
+    size_gibibytes = var.nfs_in_k8s.size_gibibytes
+    storage_class  = replace("compute-csi-${lower(var.nfs_in_k8s.disk_type)}-${lower(var.nfs_in_k8s.filesystem_type)}", "_", "-")
+  }
   nfs_node_group_enabled = var.slurm_nodeset_nfs != null
 
   exporter_enabled    = var.slurm_exporter_enabled

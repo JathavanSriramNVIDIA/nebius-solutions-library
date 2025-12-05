@@ -112,3 +112,8 @@ output "label_jail" {
   description = "System nodeset label."
   value       = local.label.jail
 }
+
+output "label_exclude_from_external_lb" {
+  description = "Exclude nodes from external load balancer"
+  value       = local.label.exclude_from_external_lb
+}

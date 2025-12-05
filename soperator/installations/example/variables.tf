@@ -430,10 +430,11 @@ resource "terraform_data" "check_nfs" {
 
 variable "nfs_in_k8s" {
   type = object({
-    enabled        = bool
-    version        = optional(string)
-    size_gibibytes = optional(number)
-    storage_class  = optional(string)
+    enabled         = bool
+    version         = optional(string)
+    size_gibibytes  = optional(number)
+    disk_type       = optional(string)
+    filesystem_type = optional(string)
   })
   default = {
     enabled = false
@@ -1085,10 +1086,10 @@ variable "maintenance_ignore_node_groups" {
 variable "active_checks_scope" {
   type        = string
   description = "Scope of active checks. Defines what active checks should be checked during cluster bootstrap."
-  default     = "prod"
+  default     = ""
   validation {
-    condition     = contains(["dev", "testing", "prod"], var.active_checks_scope)
-    error_message = "active_checks_scope should be one of: dev, testing, prod."
+    condition     = contains(["dev", "testing", "prod_quick", "prod_acceptance"], var.active_checks_scope)
+    error_message = "active_checks_scope should be one of: dev, testing, prod_quick, prod_acceptance."
   }
 }
 

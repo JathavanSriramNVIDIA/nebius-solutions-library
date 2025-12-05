@@ -68,6 +68,26 @@ resource "nebius_mk8s_v1_node_group" "worker" {
     drain_timeout = var.node_group_workers[count.index].drain_timeout
   }
 
+  auto_repair = {
+    conditions = [
+      {
+        type     = "NebiusBootDiskIOError"
+        status   = "TRUE"
+        disabled = true
+      },
+      {
+        type     = "NodeReady"
+        status   = "UNKNOWN"
+        disabled = true
+      },
+      {
+        type     = "NebiusGPUError"
+        status   = "TRUE"
+        disabled = true
+      },
+    ]
+  }
+
   template = {
     metadata = {
       labels = merge(
@@ -80,6 +100,7 @@ resource "nebius_mk8s_v1_node_group" "worker" {
         }),
         local.node_group_workload_label.worker[count.index],
         (local.node_group_gpu_present.worker[count.index] ? module.labels.label_nebius_gpu : {}),
+        module.labels.label_exclude_from_external_lb,
       )
     }
     taints = local.node_group_gpu_present.worker[count.index] ? [{

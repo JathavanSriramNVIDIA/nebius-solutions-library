@@ -1,8 +1,6 @@
 locals {
-  # dev scope: disable long dcgmi diag checks
-  # testing scope: keep only dcgmi diag r2
-  # prod scope: keep only dcgmi diag r3
   active_checks_scopes = {
+    # Scope for dev clusters
     dev = {
       dcgmiDiagR2 = {
         runAfterCreation = false
@@ -15,6 +13,7 @@ locals {
       }
     }
 
+    # Run what is relevant in E2E
     testing = {
       dcgmiDiagR3 = {
         runAfterCreation = false
@@ -24,9 +23,25 @@ locals {
       }
     }
 
-    prod = {
-      # We don't need dcgmi diag -r 2 when we run -r 3
+    # Check the provisioned cluster, but don't run health-checks that take long
+    prod_quick = {
+      allReducePerfNCCLInDocker = {
+        runAfterCreation = false
+      }
       dcgmiDiagR2 = {
+        runAfterCreation = false
+      }
+      dcgmiDiagR3 = {
+        runAfterCreation = false
+      }
+      sshCheck = {
+        numOfLoginNodes = var.node_count.login
+      }
+    }
+
+    # Run all available health-checks
+    prod_acceptance = {
+      allReducePerfNCCLInDocker = {
         runAfterCreation = false
       }
       sshCheck = {

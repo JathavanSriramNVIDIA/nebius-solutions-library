@@ -160,9 +160,11 @@ filestore_accounting = {
 # }
 
 nfs_in_k8s = {
-  enabled        = true
-  version        = "1.1.0-6efb732b" # change after first release with separate NFS versioning
-  size_gibibytes = 3720
+  enabled         = true
+  version         = "1.2.0" # change after first release with separate NFS versioning
+  size_gibibytes  = 3720
+  disk_type       = "NETWORK_SSD_IO_M3"
+  filesystem_type = "ext4"
 }
 
 # endregion nfs-server
@@ -418,13 +420,14 @@ slurm_exporter_enabled = true
 #----------------------------------------------------------------------------------------------------------------------#
 # region ActiveChecks
 
-# Scope of active checks. Defines what active checks should be checked during cluster bootstrap.
-# By default, prod.
-# All values: prod, dev, testing.
-# Defaults of the chart: https://github.com/nebius/soperator/blob/1a8e7e322a3dc84974b4f25890e26f8e19c20eb6/helm/soperator-activechecks/values.yaml#L28
-# Defaults override: https://github.com/nebius/nebius-solutions-library/blob/9e971de4d85aeb2799e71a163ed47c8480878314/soperator/modules/slurm/locals_active_checks.tf
+# Scope of active health-checks. Defines what checks should run after the cluster is provisioned.
+# Available scopes:
+# - "prod_acceptance" - run all available health-checks. Takes additional 30 minutes (H100) - 2 hours (B300).
+# - "prod_quick" - run all health-checks except those that take long. Takes additional 10 minutes (H100) - 30 minutes (B300).
+# - "testing" - to be used for Soperator E2E tests.
+# - "dev" - to be used for Soperator development clusters.
 # ---
-active_checks_scope = "prod"
+active_checks_scope = ""
 
 # endregion ActiveChecks
 

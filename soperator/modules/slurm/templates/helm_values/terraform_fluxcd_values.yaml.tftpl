@@ -586,7 +586,7 @@ resources:
                   - name: ensure-node-local-jail-submount-${sub_mount.name}-${sub_mount.filesystem_type}
                     image: cr.eu-north1.nebius.cloud/soperator/busybox
                     volumeMounts: [{ name: '${sub_mount.name}', mountPath: /volume-mount }]
-                    command: ["grep", ' /volume-mount ${sub_mount.filesystem_type} ', "/proc/mounts"]
+                    command: ["sh", "-c", "grep ' /volume-mount ${sub_mount.filesystem_type} ' /proc/mounts && chmod 777 /volume-mount"]
                   %{~ endfor ~}
                   %{~ if slurm_cluster.node_local_image_storage.enabled ~}
                   - name: ensure-node-local-image-storage-${slurm_cluster.node_local_image_storage.spec.filesystem_type}
@@ -810,7 +810,7 @@ resources:
 
             %{~ if slurm_cluster.use_cuda13rc ~}
             images:
-              populateJail: "cr.eu-north1.nebius.cloud/soperator-unstable/populate_jail:1.23.0-cuda13"
+              populateJail: "cr.eu-north1.nebius.cloud/soperator-unstable/populate_jail:1.23.0-noble-slurm25.05.4-e6539759"
             %{~ endif ~}
 
           slurmClusterStorage:
@@ -897,21 +897,6 @@ resources:
             %{~ if slurm_cluster.use_cuda13rc ~}
             activeCheckImage: "cr.eu-north1.nebius.cloud#soperator/active_checks:13.0.2-ubuntu24.04-nccl_tests2.17.6-3935b93"
             %{~ endif ~}
-            jobContainer:
-              env:
-              - name: "K8S_POD_NAME"
-                valueFrom:
-                  fieldRef:
-                    fieldPath: "metadata.name"
-              - name: "K8S_POD_NAMESPACE"
-                valueFrom:
-                  fieldRef:
-                    fieldPath: "metadata.namespace"
-              - name: "SNCCLD_ENABLED"
-                value: "false"
-              - name: "SLURM_EXTRA_COMMENT_JSON"
-                value: '{"log_workspace": "${replace(iam_project_id, "project-", "o11yworkspace-")}"}'
-
 
         soperator:
           enabled: true
