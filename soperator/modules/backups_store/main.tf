@@ -25,6 +25,11 @@ if [ $? != 0 ]; then
   exit 0
 fi
 
+if ! aws s3api head-bucket --bucket ${self.triggers_replace.bucket_name} 2>/dev/null; then
+  echo "Bucket ${self.triggers_replace.bucket_name} doesn't exist, skipping cleanup"
+  exit 0
+fi
+
 aws s3 rm s3://${self.triggers_replace.bucket_name}/ --recursive
 EOT
   }
