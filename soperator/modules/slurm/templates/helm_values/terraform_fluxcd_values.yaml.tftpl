@@ -930,7 +930,7 @@ resources:
               checks:
                 manager:
                   enableNodeReplacement: true
-                  disableExtensiveCheck: false
+                  enableExtensiveCheck: true
                   env:
                     maintenanceIgnoreNodeLabels: "${join(",", slurm_cluster.maintenance_ignore_node_labels)}"
                   resources:
