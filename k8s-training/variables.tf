@@ -45,6 +45,12 @@ variable "enable_filestore" {
   default     = false
 }
 
+variable "existing_sharedfs" {
+  description = "Add existing SFS"
+  type        = string
+  default     = null
+}
+
 variable "filestore_disk_type" {
   description = "Filestore disk size in bytes."
   type        = string
