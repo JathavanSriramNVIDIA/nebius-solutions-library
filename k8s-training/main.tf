@@ -82,10 +82,10 @@ resource "nebius_mk8s_v1_node_group" "cpu-only" {
         attach_mode = "READ_WRITE"
         mount_tag   = "data"
         existing_filesystem = {
-          id = local.shared-filesystem.id
+          id   = local.shared-filesystem.id
           size = local.shared-filesystem.size_gibibytes
         }
-        
+
       }
     ] : null
     underlay_required = false
