@@ -6,6 +6,10 @@ terraform {
     kubernetes = {
       source = "hashicorp/kubernetes"
     }
+    units = {
+      source  = "dstaroff/units"
+      version = ">=1.1.1"
+    }
 
     helm = {
       source  = "hashicorp/helm"

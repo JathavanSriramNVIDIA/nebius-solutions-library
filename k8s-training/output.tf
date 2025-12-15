@@ -16,3 +16,8 @@ output "kube_cluster_ca_certificate" {
   sensitive = true
   value     = nebius_mk8s_v1_cluster.k8s-cluster.status.control_plane.auth.cluster_ca_certificate
 }
+
+output "shared-filesystem" {
+  description = "Shared-filesystem."
+  value       = local.shared-filesystem
+}

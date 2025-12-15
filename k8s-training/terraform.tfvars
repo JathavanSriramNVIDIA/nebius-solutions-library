@@ -33,10 +33,10 @@ enable_prometheus = true # Enable or disable Prometheus and Grafana deployment w
 enable_loki       = true # Enable or disable Loki deployment with true or false
 
 # Storage
-enable_filestore     = true                             # Enable or disable Filestore integration with true or false
-filestore_disk_size  = 10 * (1024 * 1024 * 1024 * 1024) # Set Filestore disk size in bytes. The multiplication makes it easier to set the size in TB. This would set the size as 10TB
-filestore_block_size = 4096                             # Set Filestore block size in bytes
-
+enable_filestore               = false                                   # Enable or disable Filestore integration with true or false
+existing_filestore             = "" # If enable_filestore = true, with this variable we can add existing filestore. Require string, example existing_filestore = "computefilesystem-e00r7z9vfxmg1bk99s"
+filestore_disk_size_gibibytes  = 100                                     # Set Filestore disk size in Gbytes.
+filestore_block_size_kibibytes = 4                                      # Set Filestore block size in bytes
 
 # KubeRay
 # for GPU isolation to work with kuberay, gpu_nodes_driverfull_image must be set 
