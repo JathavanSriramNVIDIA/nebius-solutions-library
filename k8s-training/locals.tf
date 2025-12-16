@@ -58,7 +58,7 @@ locals {
 
   platform_to_cuda = {
     gpu-b200-sxm-a = "cuda12.8"
-    gpu-b300-sxm = "cuda13.0"
+    gpu-b300-sxm   = "cuda13.0"
   }
   device_preset = lookup(local.platform_to_cuda, local.gpu_nodes_platform, "cuda12")
 
