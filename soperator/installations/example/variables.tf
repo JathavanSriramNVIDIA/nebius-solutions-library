@@ -439,6 +439,26 @@ variable "nfs_in_k8s" {
   default = {
     enabled = false
   }
+  validation {
+    condition = (
+      !var.nfs_in_k8s.enabled
+      ||
+      (
+        var.nfs_in_k8s.filesystem_type != null
+        && var.nfs_in_k8s.disk_type != null
+        && var.nfs_in_k8s.size_gibibytes != null
+        && (
+          !contains(["NETWORK_SSD_IO_M3", "NETWORK_SSD_NON_REPLICATED"], var.nfs_in_k8s.disk_type)
+          || (var.nfs_in_k8s.size_gibibytes % 93 == 0)
+        )
+      )
+    )
+
+    error_message = <<EOT
+If NFS in K8s is enabled, filesystem_type, disk_type, and size_gibibytes must be set.
+Additionally, if disk_type is NETWORK_SSD_IO_M3 or NETWORK_SSD_NON_REPLICATED, size_gibibytes must be a multiple of 93.
+EOT
+  }
 }
 
 # endregion nfs-server
