@@ -1,5 +1,5 @@
 module "k8s-training" {
-  source = "../k8s-training"
+  source = "../../k8s-training"
 
   tenant_id = var.tenant_id
   parent_id = var.parent_id
@@ -123,7 +123,7 @@ resource "nebius_applications_v1alpha1_k8s_release" "this" {
 
   application_name = "dstack"
   namespace        = "dstack"
-  product_slug     = "nebius/keyvan-dstack"
+  product_slug     = "nebius/dstack"
 
   set = {
     "env.DSTACK_SERVER_ADMIN_TOKEN" : random_password.dstack_app.result,
