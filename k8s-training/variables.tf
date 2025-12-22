@@ -233,8 +233,14 @@ variable "test_mode" {
   default     = false
 }
 
-variable "enable_kuberay" {
-  description = "Enable kuberay"
+variable "enable_kuberay_cluster" {
+  description = "Enable kuberay and deploy RayCluster"
+  type        = bool
+  default     = false
+}
+
+variable "enable_kuberay_service" {
+  description = "Enable kuberay and deploy RayService"
   type        = bool
   default     = false
 }
@@ -290,6 +296,12 @@ variable "kuberay_gpu_resources" {
     memory = number
   })
   default = null
+}
+
+variable "kuberay_serve_config_v2" {
+  description = "Represents the configuration that Ray Serve uses to deploy the application"
+  type        = string
+  default     = null
 }
 
 variable "mig_strategy" {
