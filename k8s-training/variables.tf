@@ -45,22 +45,28 @@ variable "enable_filestore" {
   default     = false
 }
 
+variable "existing_filestore" {
+  description = "Add existing SFS"
+  type        = string
+  default     = null
+}
+
 variable "filestore_disk_type" {
   description = "Filestore disk size in bytes."
   type        = string
   default     = "NETWORK_SSD"
 }
 
-variable "filestore_disk_size" {
+variable "filestore_disk_size_gibibytes" {
   description = "Filestore disk size in bytes."
   type        = number
-  default     = 1 * 1024 * 1024 * 1024 # 1 GiB
+  default     = 1 # 1 GiB
 }
 
-variable "filestore_block_size" {
+variable "filestore_block_size_kibibytes" {
   description = "Filestore block size in bytes."
   type        = number
-  default     = 4096
+  default     = 4 # 4kb
 }
 
 # K8s access
