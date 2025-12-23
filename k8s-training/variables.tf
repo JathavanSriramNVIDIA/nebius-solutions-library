@@ -175,10 +175,22 @@ variable "infiniband_fabric" {
   default     = null
 }
 
-variable "gpu_nodes_assign_public_ip" {
+variable "gpu_nodes_public_ips" {
   description = "Assign public IP address to GPU nodes to make them directly accessible from the external internet."
   type        = bool
   default     = false
+}
+
+variable "cpu_nodes_public_ips" {
+  description = "Assign public IP address to CPU nodes to make them directly accessible from the external internet."
+  type        = bool
+  default     = false
+}
+
+variable "mk8s_cluster_public_endpoint" {
+  description = "Assign public endpoint to MK8S cluster to make it directly accessible from the external internet."
+  type        = bool
+  default     = true
 }
 
 variable "enable_k8s_node_group_sa" {
