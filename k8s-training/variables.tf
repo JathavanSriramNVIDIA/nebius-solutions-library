@@ -20,6 +20,14 @@ variable "region" {
 }
 
 # K8s cluster 
+
+# Mk8s cluster name
+variable "cluster_name" {
+  description = "Base name used for MK8s cluster and related resources (node groups, service accounts)."
+  type        = string
+  default     = "k8s-training"
+}
+
 variable "k8s_version" {
   description = "Kubernetes version to be used in the cluster. Leave null to use backend default (recommended), or choose 1.31 or above."
   type        = string

@@ -1,3 +1,6 @@
+# Mk8s cluster name. By default it is "k8s-training"
+cluster_name = "k8s-fixednow-dev"
+
 # SSH config
 ssh_user_name = "ubuntu" # Username you want to use to connect to the nodes
 ssh_public_key = {

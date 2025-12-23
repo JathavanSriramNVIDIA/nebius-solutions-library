@@ -1,6 +1,6 @@
 resource "nebius_mk8s_v1_cluster" "k8s-cluster" {
   parent_id = var.parent_id
-  name      = join("-", ["k8s-training", local.release-suffix])
+  name      = var.cluster_name
   control_plane = {
     endpoints = {
       public_endpoint = {}
@@ -36,7 +36,7 @@ data "nebius_iam_v1_group" "editors" {
 resource "nebius_iam_v1_service_account" "k8s_node_group_sa" {
   count     = var.enable_k8s_node_group_sa ? 1 : 0
   parent_id = var.parent_id
-  name      = join("-", ["k8s_node_group_sa", local.release-suffix])
+  name      = "${var.cluster_name}-k8s-node-group-sa"
 }
 
 resource "nebius_iam_v1_group_membership" "k8s_node_group_sa-admin" {
@@ -50,7 +50,7 @@ resource "nebius_iam_v1_group_membership" "k8s_node_group_sa-admin" {
 resource "nebius_mk8s_v1_node_group" "cpu-only" {
   fixed_node_count = var.cpu_nodes_count
   parent_id        = nebius_mk8s_v1_cluster.k8s-cluster.id
-  name             = join("-", ["k8s-ng-cpu", local.release-suffix])
+  name             = "${var.cluster_name}-ng-cpu"
   labels = {
     "library-solution" : "k8s-training",
   }
@@ -107,7 +107,7 @@ resource "nebius_mk8s_v1_node_group" "gpu" {
   count            = var.gpu_node_groups
   fixed_node_count = var.gpu_nodes_count_per_group
   parent_id        = nebius_mk8s_v1_cluster.k8s-cluster.id
-  name             = join("-", ["k8s-ng-gpu", local.release-suffix, count.index])
+  name             = "${var.cluster_name}-ng-gpu-${count.index}"
   labels = {
     "library-solution" : "k8s-training",
   }
