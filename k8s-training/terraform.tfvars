@@ -24,10 +24,10 @@ enable_egress_gateway      = false
 cpu_nodes_preemptible      = false
 gpu_nodes_preemptible      = false
 
-cpu_nodes_public_ips = false
-gpu_nodes_public_ips = false
+cpu_nodes_public_ips         = false
+gpu_nodes_public_ips         = false
 mk8s_cluster_public_endpoint = true # Set it to FALSE only in case if you've deployed the [bastion](https://github.com/nebius/nebius-solutions-library/blob/main/bastion/README.md)
-                                    # host first, and you are deploying cluster from the bastion instance
+# host first, and you are deploying cluster from the bastion instance
 
 # MIG configuration
 # mig_strategy =        # If set, possible values include 'single', 'mixed', 'none'
