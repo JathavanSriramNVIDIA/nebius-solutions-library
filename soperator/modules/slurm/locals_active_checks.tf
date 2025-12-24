@@ -12,8 +12,8 @@ locals {
         k8sJobSpec = {
           jobContainer = {
             env = [{
-              name: "NUM_OF_LOGIN_NODES",
-              value: var.node_count.login
+              name : "NUM_OF_LOGIN_NODES",
+              value : var.node_count.login
             }]
           }
         }
@@ -29,8 +29,8 @@ locals {
         k8sJobSpec = {
           jobContainer = {
             env = [{
-              name: "NUM_OF_LOGIN_NODES",
-              value: var.node_count.login
+              name : "NUM_OF_LOGIN_NODES",
+              value : var.node_count.login
             }]
           }
         }
@@ -52,8 +52,8 @@ locals {
         k8sJobSpec = {
           jobContainer = {
             env = [{
-              name: "NUM_OF_LOGIN_NODES",
-              value: var.node_count.login
+              name : "NUM_OF_LOGIN_NODES",
+              value : var.node_count.login
             }]
           }
         }
@@ -69,8 +69,8 @@ locals {
         k8sJobSpec = {
           jobContainer = {
             env = [{
-              name: "NUM_OF_LOGIN_NODES",
-              value: var.node_count.login
+              name : "NUM_OF_LOGIN_NODES",
+              value : var.node_count.login
             }]
           }
         }
