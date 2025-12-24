@@ -7,6 +7,7 @@ on:
       - 'wireguard/**'
       - 'dsvm/**'
       - 'bastion/**'
+      - 'modules/**'
 #  schedule:
 #    - cron: '30 * * * *'
 
@@ -47,6 +48,8 @@ jobs:
             solution=$(echo "$file" | cut -d "/" -f1)
             if [[ $solution =~ $pattern ]]; then
                 matched+=("$solution")
+            elif [[ $solution == "modules" ]]; then
+              matched=("k8s-training wireguard bastion dsvm")
             fi
           done
           unique=$(echo "${matched[@]}" | tr ' ' '\n' | uniq);
