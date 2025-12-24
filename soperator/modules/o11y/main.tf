@@ -208,7 +208,13 @@ data:
       metricsProjectId: ${self.triggers_replace.iam_project_id}
     soperatorActiveChecks:
       overrideValues:
-        extraCommentJson: "{\"o11y_workspace\": \"$O11YWORKSPACE_ID\"}"
+        checks:
+          extensive-check:
+            slurmJobSpec:
+              jobContainer:
+                extraEnv:
+                  - name: "SLURM_EXTRA_COMMENT_JSON"
+                    value: "{\"o11y_workspace\": \"$O11YWORKSPACE_ID\"}"
 EOF
 EOT
   }
