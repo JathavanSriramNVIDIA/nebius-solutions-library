@@ -208,7 +208,9 @@ data:
       metricsProjectId: ${self.triggers_replace.iam_project_id}
     soperatorActiveChecks:
       overrideValues:
-        extraCommentJson: "{\"o11y_workspace\": \"$O11YWORKSPACE_ID\"}"
+        checks:
+          extensiveCheck:
+            extraCommentJson: "{\"o11y_workspace\": \"$O11YWORKSPACE_ID\"}"
 EOF
 EOT
   }
