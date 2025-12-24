@@ -82,9 +82,9 @@ resource "nebius_mk8s_v1_node_group" "worker_v2" {
         disabled = true
       },
       {
-        type     = "NebiusGPUError"
-        status   = "TRUE"
-        disabled = true
+        type    = "HardwareIssuesSuspected"
+        status  = "TRUE"
+        timeout = "1s"
       },
     ]
   }
