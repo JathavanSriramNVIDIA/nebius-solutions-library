@@ -3,5 +3,8 @@ terraform {
     nebius = {
       source = "terraform-provider.storage.eu-north1.nebius.cloud/nebius/nebius"
     }
+    kubectl = {
+      source = "gavinbunney/kubectl"
+    }
   }
 }
