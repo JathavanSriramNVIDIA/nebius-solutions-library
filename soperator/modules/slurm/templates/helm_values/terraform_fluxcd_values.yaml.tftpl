@@ -3,11 +3,17 @@ resources:
     kind: ConfigMap
     metadata:
       name: terraform-fluxcd-values
+      labels:
+        reconcile.fluxcd.io/watch: Enabled
+      annotations:
+        "helm.sh/resource-policy": keep
     data:
       values.yaml: |
         helmRepository:
           interval: 15m
           nfsServer:
+            url: ${soperator_helm_repo}
+          soperator:
             url: ${soperator_helm_repo}
         certManager:
           enabled: true
@@ -23,6 +29,28 @@ resources:
           %{~ if k8up_version != "" ~}
           version: ${k8up_version}
           %{~ endif ~}
+          %{~ if backups_enabled ~}
+          config:
+            enabled: true
+            version: ${operator_version}
+            values:
+              secret:
+                name: ${backups_config.secret_name}
+              bucket:
+                endpoint: ${backups_config.storage.endpoint}
+                name: ${backups_config.storage.bucket}
+              backup:
+                schedule: "${backups_config.schedule}"
+              prune:
+                schedule: "${backups_config.prune_schedule}"
+              %{~ if backups_config.retention != null ~}
+              retention:
+              %{~ for key, value in backups_config.retention ~}
+                ${key}: ${value}
+              %{~ endfor ~}
+            %{~ endif ~}
+          %{~ endif ~}
+
         mariadbOperator:
           enabled: ${accounting_enabled}
           interval: 5m
@@ -101,6 +129,7 @@ resources:
                   externalLabels:
                     iam_tenant_id: ${iam_tenant_id}
                     iam_project_id: ${iam_project_id}
+                    mk8s_cluster_id: ${k8s_cluster_id}
                   resources:
                     requests:
                       memory: ${resources.vm_agent.memory}
@@ -215,34 +244,44 @@ resources:
             maintenance: ${slurm_cluster.maintenance}
 
             partitionConfiguration:
+            %{~ if slurm_nodesets_enabled ~}
               configType: ${slurm_nodesets_enabled ? "structured" : slurm_cluster.partition_configuration.slurm_config_type}
-              %{~ if slurm_nodesets_enabled ~}
               partitions:
-                %{~ if length(slurm_nodesets_partitions) > 0 ~}
+                - name: main
+                  isAll: true
+                  config: "Default=YES PriorityTier=10 MaxTime=INFINITE State=UP OverSubscribe=YES"
+                - name: hidden
+                  isAll: true
+                  config: "Default=NO PriorityTier=10 PreemptMode=OFF Hidden=YES MaxTime=INFINITE State=UP OverSubscribe=YES"
+                %{~ for nodeset in nodesets ~}
+                %{~ if nodeset.create_partition ~}
+                - name: ${nodeset.name}
+                  nodeSetRefs:
+                    - "${nodeset.name}"
+                  config: "Default=NO PriorityTier=2 MaxTime=INFINITE State=UP OverSubscribe=YES"
+                %{~ endif ~}
+                %{~ endfor ~}
                 %{~ for partition in slurm_nodesets_partitions ~}
                 - name: ${partition.name}
                   %{~ if partition.is_all ~}
-                  nodes: ALL
+                  isAll: true
                   %{~ else ~}
                   nodeSetRefs:
-                    %{~ for nodeset_ref in partition.nodeset_refs ~}
+                  %{~ for nodeset_ref in partition.nodeset_refs ~}
                     - "${nodeset_ref}"
-                    %{~ endfor ~}
+                  %{~ endfor ~}
                   %{~ endif ~}
                   config: "${partition.config}"
                 %{~ endfor ~}
-                %{~ else ~}
-                - name: main
-                  default: true
-                  nodes: ALL
-                %{~ endif ~}
-              %{~ endif ~}
+            %{~ else ~}
+              configType: ${slurm_cluster.partition_configuration.slurm_config_type}
               %{~ if slurm_cluster.partition_configuration.slurm_config_type == "custom" ~}
               rawConfig:
-                %{~ for partition in slurm_cluster.partition_configuration.slurm_raw_config ~}
+              %{~ for partition in slurm_cluster.partition_configuration.slurm_raw_config ~}
                 - "${partition}"
-                %{~ endfor ~}
+              %{~ endfor ~}
               %{~ endif ~}
+            %{~ endif ~}
 
             workerFeatures:
               %{~ for feature in slurm_cluster.slurm_worker_features ~}
@@ -838,47 +877,6 @@ resources:
                       effect: NoSchedule
                   %{~ endif ~}
 
-        nodesets:
-          enabled: ${slurm_nodesets_enabled}
-          %{~ if slurm_nodesets_enabled ~}
-          interval: 5m
-          timeout: 5m
-          version: ${operator_version}
-          namespace: soperator
-          releaseName: soperator-nodesets
-          overrideValues:
-            nodesets:
-              %{~ for node_group in node_group_workers ~}
-              - name: ${node_group.name}%{~ if node_group.subset_index > 0 ~}-${node_group.subset_index}%{~ endif ~}
-
-                replicas: ${node_group.size}
-                nodeSelector:
-                  slurm.nebius.ai/nodeset-name: ${node_group.name}
-                slurmd:
-                  volumes:
-                    spool:
-                      emptyDir: {}
-                    jail:
-                      persistentVolumeClaim:
-                        claimName: jail-pvc
-                        readOnly: false
-                  resources:
-                    cpu: ${floor(worker_resources[node_group.nodeset_index].cpu_cores * 1000)}m
-                    memory: ${floor(worker_resources[node_group.nodeset_index].memory_gibibytes)}Gi
-                    ephemeralStorage: ${worker_resources[node_group.nodeset_index].ephemeral_storage_gibibytes}Gi
-                    %{~ if worker_resources[node_group.nodeset_index].gpus > 0 ~}
-                    nvidia.com/gpu: ${worker_resources[node_group.nodeset_index].gpus}
-                    %{~ endif ~}
-                nodeConfig:
-                  static: "CPUs=${worker_resources[node_group.nodeset_index].cpu_cores} RealMemory=${floor(worker_resources[node_group.nodeset_index].memory_gibibytes * 1024)} %{~ if worker_resources[node_group.nodeset_index].gpus > 0 ~}Gres=gpu:${worker_resources[node_group.nodeset_index].gpus}%{~ endif ~}"
-                munge:
-                  resources:
-                    cpu: ${slurm_cluster.nodes.munge.resources.cpu * 1000}m
-                    memory: ${slurm_cluster.nodes.munge.resources.memory}Gi
-                    ephemeralStorage: ${slurm_cluster.nodes.munge.resources.ephemeral_storage}Gi
-              %{~ endfor ~}
-          %{~ endif ~}
-
         soperatorActiveChecks:
           enabled: true
           interval: 5m
@@ -888,7 +886,10 @@ resources:
           namespace: soperator
           overrideValues:
             slurmClusterRefName: ${name}
-            ${soperator_active_checks_override_block}
+            checks:
+              ensureDirSnccldLogs:
+                enabled: true
+              ${soperator_active_checks_override_block}
             %{~ if slurm_cluster.use_cuda13rc ~}
             activeCheckImage: "cr.eu-north1.nebius.cloud#soperator/active_checks:13.0.2-ubuntu24.04-nccl_tests2.17.6-3935b93"
             %{~ endif ~}
@@ -898,7 +899,9 @@ resources:
           interval: 5m
           timeout: 5m
           version: ${operator_version}
+          %{~ if length(operator_feature_gates) > 0 ~}
           featureGates: "${operator_feature_gates}"
+          %{~ endif ~}
           values:
             manager:
               resources:
@@ -996,3 +999,8 @@ resources:
           %{~ endif ~}
         tailscale:
           enabled: ${tailscale_enabled}
+
+        %{~ for release in releases ~}
+        ${ indent(8, release) }
+
+        %{~ endfor ~}

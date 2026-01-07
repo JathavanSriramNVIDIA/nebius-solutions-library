@@ -101,3 +101,34 @@ resource "nebius_mk8s_v1_node_group" "egress-gateway" {
     }]
   }
 }
+
+resource "kubectl_manifest" "egress_nodes_network_policy" {
+  yaml_body = <<YAML
+    apiVersion: cilium.io/v2
+    kind: CiliumClusterwideNetworkPolicy
+    metadata:
+      name: restrict-nodeports-and-kubelet-egress-nodes
+    spec:
+      nodeSelector:
+        matchLabels:
+          io.cilium/egress-gateway: "true"
+      ingress:
+        - fromCIDR:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+          toPorts:
+            - ports:
+                - port: "10250"
+                  protocol: TCP
+                - port: "30000"
+                  endPort: 32767
+                  protocol: TCP
+        - fromEntities:
+            - cluster
+            - kube-apiserver
+      egress:
+        - toEntities:
+            - all
+  YAML
+}

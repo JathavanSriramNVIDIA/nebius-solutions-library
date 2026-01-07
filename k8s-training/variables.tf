@@ -20,6 +20,14 @@ variable "region" {
 }
 
 # K8s cluster 
+
+# Mk8s cluster name
+variable "cluster_name" {
+  description = "Base name used for MK8s cluster and related resources (node groups, service accounts)."
+  type        = string
+  default     = "k8s-training"
+}
+
 variable "k8s_version" {
   description = "Kubernetes version to be used in the cluster. Leave null to use backend default (recommended), or choose 1.31 or above."
   type        = string
@@ -45,22 +53,28 @@ variable "enable_filestore" {
   default     = false
 }
 
+variable "existing_filestore" {
+  description = "Add existing SFS"
+  type        = string
+  default     = null
+}
+
 variable "filestore_disk_type" {
   description = "Filestore disk size in bytes."
   type        = string
   default     = "NETWORK_SSD"
 }
 
-variable "filestore_disk_size" {
+variable "filestore_disk_size_gibibytes" {
   description = "Filestore disk size in bytes."
   type        = number
-  default     = 1 * 1024 * 1024 * 1024 # 1 GiB
+  default     = 1 # 1 GiB
 }
 
-variable "filestore_block_size" {
+variable "filestore_block_size_kibibytes" {
   description = "Filestore block size in bytes."
   type        = number
-  default     = 4096
+  default     = 4 # 4kb
 }
 
 # K8s access
@@ -233,8 +247,14 @@ variable "test_mode" {
   default     = false
 }
 
-variable "enable_kuberay" {
-  description = "Enable kuberay"
+variable "enable_kuberay_cluster" {
+  description = "Enable kuberay and deploy RayCluster"
+  type        = bool
+  default     = false
+}
+
+variable "enable_kuberay_service" {
+  description = "Enable kuberay and deploy RayService"
   type        = bool
   default     = false
 }
@@ -290,6 +310,12 @@ variable "kuberay_gpu_resources" {
     memory = number
   })
   default = null
+}
+
+variable "kuberay_serve_config_v2" {
+  description = "Represents the configuration that Ray Serve uses to deploy the application"
+  type        = string
+  default     = null
 }
 
 variable "mig_strategy" {

@@ -3,6 +3,10 @@ locals {
   ssh_public_key = var.ssh_public_key.key != null ? var.ssh_public_key.key : (
   fileexists(var.ssh_public_key.path) ? file(var.ssh_public_key.path) : null)
 
+  filestore = {
+    mount_tag = "data"
+  }
+
   regions_default = {
     eu-west1 = {
       cpu_nodes_platform = "cpu-d3"
@@ -39,6 +43,13 @@ locals {
       gpu_nodes_preset   = "8gpu-160vcpu-1792gb"
       infiniband_fabric  = "ramon"
     }
+    uk-south1 = {
+      cpu_nodes_platform = "cpu-d3"
+      cpu_nodes_preset   = "16vcpu-64gb"
+      gpu_nodes_platform = "gpu-b300-sxm"
+      gpu_nodes_preset   = "8gpu-192vcpu-2768gb"
+      infiniband_fabric  = "uk-south1-a"
+    }
   }
 
   current_region_defaults = local.regions_default[var.region]
@@ -51,14 +62,17 @@ locals {
 
   platform_to_cuda = {
     gpu-b200-sxm-a = "cuda12.8"
+    gpu-b300-sxm   = "cuda13.0"
   }
   device_preset = lookup(local.platform_to_cuda, local.gpu_nodes_platform, "cuda12")
 
   valid_mig_parted_configs = {
-    "gpu-h100-sxm" = ["all-disabled", "all-enabled", "all-balanced", "all-1g.10gb", "all-1g.10gb.me", "all-1g.20gb", "all-2g.20gb", "all-3g.40gb", "all-4g.40gb", "all-7g.80gb"]
-    "gpu-h200-sxm" = ["all-disabled", "all-enabled", "all-balanced", "all-1g.18gb", "all-1g.18gb.me", "all-1g.35gb", "all-2g.35gb", "all-3g.71gb", "all-4g.71gb", "all-7g.141gb"]
-    "gpu-b200-sxm" = ["all-disabled", "all-enabled", "all-balanced", "all-1g.23gb", "all-1g.23gb.me", "all-1g.45gb", "all-2g.45gb", "all-3g.90gb", "all-4g.90gb", "all-7g.180gb"]
+    "gpu-h100-sxm"   = ["all-disabled", "all-enabled", "all-balanced", "all-1g.10gb", "all-1g.10gb.me", "all-1g.20gb", "all-2g.20gb", "all-3g.40gb", "all-4g.40gb", "all-7g.80gb"]
+    "gpu-h200-sxm"   = ["all-disabled", "all-enabled", "all-balanced", "all-1g.18gb", "all-1g.18gb.me", "all-1g.35gb", "all-2g.35gb", "all-3g.71gb", "all-4g.71gb", "all-7g.141gb"]
+    "gpu-b200-sxm"   = ["all-disabled", "all-enabled", "all-balanced", "all-1g.23gb", "all-1g.23gb.me", "all-1g.45gb", "all-2g.45gb", "all-3g.90gb", "all-4g.90gb", "all-7g.180gb"]
     "gpu-b200-sxm-a" = ["all-disabled", "all-enabled", "all-balanced", "all-1g.23gb", "all-1g.23gb.me", "all-1g.45gb", "all-2g.45gb", "all-3g.90gb", "all-4g.90gb", "all-7g.180gb"]
+    "gpu-b300-sxm"   = ["all-disabled", "all-enabled", "all-balanced", "all-1g.23gb", "all-1g.23gb.me", "all-1g.45gb", "all-2g.45gb", "all-3g.90gb", "all-4g.90gb", "all-7g.180gb"]
+
   }
 
   # Mapping from platform and preset to hardware profile for nebius-gpu-health-checker
@@ -72,9 +86,13 @@ locals {
     "gpu-h200-sxm-8gpu-128vcpu-1600gb" = "8xH200"
 
     # B200 configurations
-    "gpu-b200-sxm-1gpu-20vcpu-224gb"   = "1xB200"
-    "gpu-b200-sxm-8gpu-160vcpu-1792gb" = "8xB200"
+    "gpu-b200-sxm-1gpu-20vcpu-224gb"     = "1xB200"
+    "gpu-b200-sxm-8gpu-160vcpu-1792gb"   = "8xB200"
     "gpu-b200-sxm-a-8gpu-160vcpu-1792gb" = "8xB200"
+
+    #B300 configuration
+    "gpu-b300-sxm-8gpu-192vcpu-2768gb" = "8xB300"
+    "gpu-b300-sxm-1gpu-24vcpu-346gb"   = "1xB300"
 
     # L40 configurations
     # TODO add support for L400

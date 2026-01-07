@@ -29,7 +29,7 @@ Before starting, ensure you have these tools installed:
 
 ### 1. Get Terraform Files
 
-The recommended way: download and unpack [the latest release](https://github.com/nebius/nebius-solution-library/releases):
+The recommended way: download and unpack [the latest release](https://github.com/nebius/nebius-solutions-library/releases?q=%22Soperator+Terraform+recipe%22&expanded=true):
 ```bash
 tar -xvf soperator-tf-*.**.**-*.tar.gz
 ```

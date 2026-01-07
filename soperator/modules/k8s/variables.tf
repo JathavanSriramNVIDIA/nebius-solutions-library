@@ -67,7 +67,7 @@ variable "node_group_nfs" {
   description = "NFS node group specification."
   type = object({
     enabled = bool
-    spec = object({
+    spec = optional(object({
       size = number
       resource = object({
         platform = string
@@ -78,7 +78,7 @@ variable "node_group_nfs" {
         size_gibibytes       = number
         block_size_kibibytes = number
       })
-    })
+    }))
   })
 }
 

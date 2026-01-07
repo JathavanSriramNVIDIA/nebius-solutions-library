@@ -5,7 +5,3 @@ terraform {
     }
   }
 }
-
-provider "time" {}
-
-resource "time_static" "start" {}

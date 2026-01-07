@@ -41,7 +41,7 @@ locals {
       name          = nodeset.name
       size          = min(100, nodeset.size - subset * 100)
       min_size      = 0
-      max_size      = min(100, nodeset.size - subset * 100)
+      max_size      = max(1, min(100, nodeset.size - subset * 100))
       autoscaling   = true
       resource      = nodeset.resource
       boot_disk     = nodeset.boot_disk
@@ -293,10 +293,10 @@ module "slurm" {
   cluster_name        = var.company_name
   name                = local.slurm_cluster_name
   k8s_cluster_context = module.k8s.cluster_context
+  k8s_cluster_id      = module.k8s.cluster_id
 
-  operator_version       = var.slurm_operator_version
-  operator_stable        = var.slurm_operator_stable
-  operator_feature_gates = var.slurm_operator_feature_gates
+  operator_version = var.slurm_operator_version
+  operator_stable  = var.slurm_operator_stable
 
   maintenance                    = var.maintenance
   maintenance_ignore_node_groups = var.maintenance_ignore_node_groups
@@ -416,10 +416,23 @@ module "slurm" {
   exporter_enabled    = var.slurm_exporter_enabled
   rest_enabled        = var.slurm_rest_enabled
   accounting_enabled  = var.accounting_enabled
-  backups_enabled     = local.backups_enabled
   telemetry_enabled   = var.telemetry_enabled
   public_o11y_enabled = var.public_o11y_enabled
   soperator_notifier  = var.soperator_notifier
+
+  backups_enabled = local.backups_enabled
+  backups_config = {
+    secret_name    = local.backups_enabled ? module.backups[0].secret_name : null
+    password       = var.backups_password
+    schedule       = var.backups_schedule
+    prune_schedule = var.backups_prune_schedule
+    retention      = var.backups_retention
+    storage = {
+      bucket : local.backups_enabled ? module.backups_store[0].name : null,
+      endpoint : local.backups_enabled ? module.backups_store[0].endpoint : null,
+      bucket_id : local.backups_enabled ? module.backups_store[0].bucket_id : null
+    }
+  }
 
   slurmdbd_config         = var.slurmdbd_config
   slurm_accounting_config = var.slurm_accounting_config
@@ -434,7 +447,21 @@ module "slurm" {
 
   slurm_nodesets_enabled    = var.slurm_nodesets_enabled
   slurm_nodesets_partitions = var.slurm_nodesets_partitions
-  node_group_workers_v2     = local.node_group_workers_v2
+  worker_nodesets = [for nodeset in var.slurm_nodeset_workers : {
+    name            = nodeset.name
+    replicas        = nodeset.size
+    max_unavailable = "20%"
+    features = concat(
+      [
+        provider::string-functions::snake_case(nodeset.resource.platform),
+        provider::string-functions::snake_case(nodeset.boot_disk.type),
+      ],
+      nodeset.features != null ? nodeset.features : []
+    )
+    cpu_topology     = module.resources.cpu_topology_by_platform[nodeset.resource.platform][nodeset.resource.preset]
+    gres_name        = lookup(module.resources.gres_name_by_platform, nodeset.resource.platform, null)
+    create_partition = nodeset.create_partition != null ? nodeset.create_partition : false
+  }]
 
   login_allocation_id            = module.k8s.static_ip_allocation_id
   login_public_ip                = var.slurm_login_public_ip
@@ -442,13 +469,7 @@ module "slurm" {
   login_sshd_config_map_ref_name = var.slurm_login_sshd_config_map_ref_name
   login_ssh_root_public_keys     = var.slurm_login_ssh_root_public_keys
 
-  github_org              = var.github_org
-  github_repository       = var.github_repository
-  github_ref_type         = var.slurm_operator_stable ? "tag" : "branch"
-  github_ref_value        = var.slurm_operator_stable ? var.slurm_operator_version : "main"
-  flux_namespace          = local.flux_namespace
-  flux_interval           = var.flux_interval
-  flux_kustomization_path = var.slurm_operator_stable ? "fluxcd/environment/nebius-cloud/prod" : "fluxcd/environment/nebius-cloud/dev"
+  flux_namespace = local.flux_namespace
 
   providers = {
     helm = helm
@@ -497,19 +518,11 @@ module "backups" {
   iam_project_id      = var.iam_project_id
   iam_tenant_id       = var.iam_tenant_id
   instance_name       = local.k8s_cluster_name
-  flux_namespace      = local.flux_namespace
   soperator_namespace = local.slurm_cluster_name
-  bucket_name         = module.backups_store[count.index].name
-  bucket_endpoint     = module.backups_store[count.index].endpoint
-
-  backups_password  = var.backups_password
-  backups_schedule  = var.backups_schedule
-  prune_schedule    = var.backups_prune_schedule
-  backups_retention = var.backups_retention
+  backups_password    = var.backups_password
 
   providers = {
     nebius = nebius
-    helm   = helm
   }
 
   depends_on = [

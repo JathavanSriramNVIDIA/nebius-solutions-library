@@ -209,8 +209,12 @@ data:
     soperatorActiveChecks:
       overrideValues:
         checks:
-          extensiveCheck:
-            extraCommentJson: "{\"o11y_workspace\": \"$O11YWORKSPACE_ID\"}"
+          extensive-check:
+            slurmJobSpec:
+              jobContainer:
+                extraEnv:
+                  - name: "SLURM_EXTRA_COMMENT_JSON"
+                    value: "{\"o11y_workspace\": \"$O11YWORKSPACE_ID\"}"
 EOF
 EOT
   }

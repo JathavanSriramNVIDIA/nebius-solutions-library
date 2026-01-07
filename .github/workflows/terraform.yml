@@ -7,6 +7,7 @@ on:
       - 'wireguard/**'
       - 'dsvm/**'
       - 'bastion/**'
+      - 'modules/**'
 #  schedule:
 #    - cron: '30 * * * *'
 
@@ -47,12 +48,31 @@ jobs:
             solution=$(echo "$file" | cut -d "/" -f1)
             if [[ $solution =~ $pattern ]]; then
                 matched+=("$solution")
+            elif [[ $solution == "modules" ]]; then
+              matched=("k8s-training wireguard bastion dsvm")
             fi
           done
           unique=$(echo "${matched[@]}" | tr ' ' '\n' | uniq);
           json=$(printf '%s\n' "${unique[@]}" | jq -R . | jq -s -c .)
           echo "solutions=$json" >> $GITHUB_OUTPUT
     
+  terraform-format:
+    runs-on: ubuntu-latest
+    name: 'Terraform Format Check'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "v1.11.4"
+
+    # Checks that all Terraform configuration files adhere to a canonical format
+    - name: Terraform Format
+      run: terraform fmt -check -recursive . ../modules
+
   terraform:
     needs: detect-changes
     name: 'Terraform ${{ matrix.solution }}'
@@ -136,10 +156,6 @@ jobs:
     - name: Terraform Init
       run: terraform init
 
-    # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      run: terraform fmt -check -recursive . ../modules
-
     # Validate terraform code
     - name: Terraform Validate
       run: terraform validate
@@ -174,7 +190,7 @@ jobs:
         path: gh-pages
 
     - name: Build test report
-      uses: simple-elf/allure-report-action@v1.9
+      uses: simple-elf/allure-report-action@v1.13
       if: always()
       with:
         gh_pages: gh-pages
