@@ -901,6 +901,16 @@ variable "slurm_login_ssh_root_public_keys" {
   description = "Authorized keys accepted for connecting to Slurm login nodes via SSH as 'root' user."
   type        = list(string)
   nullable    = false
+
+  validation {
+    condition     = length(var.slurm_login_ssh_root_public_keys) >= 1
+    error_message = "At least one SSH public key must be provided."
+  }
+
+  validation {
+    condition     = alltrue([for k in var.slurm_login_ssh_root_public_keys : length(k) > 0])
+    error_message = "SSH public keys must not be empty strings."
+  }
 }
 
 # endregion Login
