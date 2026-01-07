@@ -19,7 +19,7 @@ data "nebius_compute_v1_filesystem" "shared-filesystem" {
 }
 
 locals {
-  shared-filesystem = var.enable_filestore && var.existing_filestore != "" ? {
+  shared-filesystem = var.enable_filestore ? {
     id = try(
       one(nebius_compute_v1_filesystem.shared-filesystem).id,
       one(data.nebius_compute_v1_filesystem.shared-filesystem).id,
