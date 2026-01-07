@@ -290,7 +290,7 @@ resource "helm_release" "soperator_fluxcd_bootstrap" {
 }
 
 resource "helm_release" "soperator_fluxcd_ad_hoc_cm" {
-  name       = "soperator-fluxcd"
+  name       = "soperator-fluxcd-values"
   repository = local.helm.repository.raw
   chart      = local.helm.chart.raw
   version    = local.helm.version.raw
