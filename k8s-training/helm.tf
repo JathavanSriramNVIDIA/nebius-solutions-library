@@ -71,8 +71,10 @@ resource "helm_release" "nebius_gpu_health_checker" {
   chart     = "${path.module}/npd-helm/nebius-npd-0.2.0.tgz"
   namespace = "default"
 
-  set {
-    name  = "hardware.profile"
-    value = local.platform_preset_to_hardware_profile[local.hardware_profile_key]
-  }
+  set = [
+    {
+      name  = "hardware.profile"
+      value = local.platform_preset_to_hardware_profile[local.hardware_profile_key]
+    }
+  ]
 }
