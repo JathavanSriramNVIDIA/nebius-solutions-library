@@ -13,7 +13,7 @@ locals {
           jobContainer = {
             env = [{
               name : "NUM_OF_LOGIN_NODES",
-              value : var.node_count.login
+              value : tostring(var.node_count.login)
             }]
           }
         }
@@ -30,7 +30,7 @@ locals {
           jobContainer = {
             env = [{
               name : "NUM_OF_LOGIN_NODES",
-              value : var.node_count.login
+              value : tostring(var.node_count.login)
             }]
           }
         }
@@ -53,7 +53,7 @@ locals {
           jobContainer = {
             env = [{
               name : "NUM_OF_LOGIN_NODES",
-              value : var.node_count.login
+              value : tostring(var.node_count.login)
             }]
           }
         }
@@ -70,7 +70,7 @@ locals {
           jobContainer = {
             env = [{
               name : "NUM_OF_LOGIN_NODES",
-              value : var.node_count.login
+              value : tostring(var.node_count.login)
             }]
           }
         }
