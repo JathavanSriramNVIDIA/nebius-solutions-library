@@ -826,8 +826,8 @@ variable "slurm_nodesets_partitions" {
 
 # endregion Nodesets
 
-variable "use_cuda13rc" {
-  description = "Whether to use unstable image with CUDA 13."
-  type        = bool
-  default     = false
+variable "cuda_major_version" {
+  description = "CUDA major version used for populate-jail image selection."
+  type        = number
+  default     = 12
 }
