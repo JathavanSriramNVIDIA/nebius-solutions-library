@@ -887,7 +887,7 @@ resources:
           overrideValues:
             slurmClusterRefName: ${name}
             checks:
-              ensureDirSnccldLogs:
+              ensure-dir-snccld-logs:
                 enabled: true
               ${soperator_active_checks_override_block}
             %{~ if slurm_cluster.use_cuda13rc ~}
