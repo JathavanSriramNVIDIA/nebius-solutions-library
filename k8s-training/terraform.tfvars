@@ -1,3 +1,6 @@
+# Mk8s cluster name. By default it is "k8s-training"
+cluster_name = "k8s-training"
+
 # SSH config
 ssh_user_name = "ubuntu" # Username you want to use to connect to the nodes
 ssh_public_key = {
@@ -33,15 +36,15 @@ enable_prometheus = true # Enable or disable Prometheus and Grafana deployment w
 enable_loki       = true # Enable or disable Loki deployment with true or false
 
 # Storage
-enable_filestore     = true                             # Enable or disable Filestore integration with true or false
-filestore_disk_size  = 10 * (1024 * 1024 * 1024 * 1024) # Set Filestore disk size in bytes. The multiplication makes it easier to set the size in TB. This would set the size as 10TB
-filestore_block_size = 4096                             # Set Filestore block size in bytes
+enable_filestore               = false # Enable or disable Filestore integration with true or false
+existing_filestore             = ""    # If enable_filestore = true, with this variable we can add existing filestore. Require string, example existing_filestore = "computefilesystem-e00r7z9vfxmg1bk99s"
+filestore_disk_size_gibibytes  = 100   # Set Filestore disk size in Gbytes.
+filestore_block_size_kibibytes = 4     # Set Filestore block size in bytes
 
-
-# KubeRay
+# KubeRay Cluster
 # for GPU isolation to work with kuberay, gpu_nodes_driverfull_image must be set 
 # to false.  This is because we enable acess to infiniband via securityContext.privileged
-enable_kuberay = false # Turn KubeRay to false, otherwise gpu capacity will be consumed by KubeRay cluster
+enable_kuberay_cluster = false # Turn KubeRay to false, otherwise gpu capacity will be consumed by KubeRay cluster
 
 #kuberay CPU worker setup
 # if you have no CPU only nodes, set these to zero
@@ -62,6 +65,10 @@ kuberay_max_gpu_replicas = 8
 #   gpus = 1
 #   memory = 150  # memory allocation in gigabytes
 # }
+
+# KubeRay Service
+# Enable to deploy KubeRay Operator with RayService CR 
+enable_kuberay_service = false
 
 # NPD nebius-gpu-health-checker helm install
 gpu_health_cheker = false

@@ -18,10 +18,11 @@ resource "nebius_iam_v1_group_membership" "loki_sa_storage_editor" {
 }
 
 resource "nebius_iam_v2_access_key" "loki_s3_key" {
-  count       = var.o11y.loki.enabled ? 1 : 0
-  parent_id   = var.parent_id
-  name        = "loki-s3-access-key"
-  description = "Access key for Loki module"
+  count                = var.o11y.loki.enabled ? 1 : 0
+  parent_id            = var.parent_id
+  name                 = "loki-s3-access-key"
+  description          = "Access key for Loki module"
+  secret_delivery_mode = "MYSTERY_BOX"
   account = {
     service_account = {
       id = nebius_iam_v1_service_account.loki_s3_sa[count.index].id
@@ -85,11 +86,13 @@ resource "nebius_applications_v1alpha1_k8s_release" "loki" {
   namespace        = var.namespace
   product_slug     = "nebius/loki"
 
-  set = {
-    "loki.storage.bucketPrefix" : "loki-${var.cluster_id}-${random_string.loki_unique_id[0].result}",
-    "loki.storage.s3.region" : var.o11y.loki.region,
-    "loki.commonConfig.replication_factor" : local.replication_factor,
-    "loki.storage.s3.accessKeyId" : nebius_iam_v2_access_key.loki_s3_key[0].status.aws_access_key_id,
-    "loki.storage.s3.secretAccessKey" : nebius_iam_v2_access_key.loki_s3_key[0].status.secret
+  sensitive = {
+    set = {
+      "loki.storage.bucketPrefix" : "loki-${var.cluster_id}-${random_string.loki_unique_id[0].result}",
+      "loki.storage.s3.region" : var.o11y.loki.region,
+      "loki.commonConfig.replication_factor" : local.replication_factor,
+      "loki.storage.s3.accessKeyId" : nebius_iam_v2_access_key.loki_s3_key[0].status.aws_access_key_id
+      "loki.storage.s3.secretAccessKey" : ephemeral.nebius_mysterybox_v1_secret_payload_entry.loki_s3_secret[0].data.string_value
+    }
   }
 }

@@ -1,6 +1,6 @@
 resource "terraform_data" "wait_for_slurm_cluster_hr" {
   depends_on = [
-    helm_release.flux2_sync,
+    helm_release.soperator_fluxcd_bootstrap,
   ]
 
   provisioner "local-exec" {
@@ -15,7 +15,7 @@ resource "terraform_data" "wait_for_slurm_cluster_hr" {
 
 resource "terraform_data" "wait_for_soperator_activechecks_hr" {
   depends_on = [
-    helm_release.flux2_sync,
+    helm_release.soperator_fluxcd_bootstrap,
   ]
 
   provisioner "local-exec" {
@@ -57,13 +57,16 @@ resource "helm_release" "soperator_fluxcd_cm" {
   namespace  = var.flux_namespace
 
   values = [templatefile("${path.module}/templates/helm_values/terraform_fluxcd_values.yaml.tftpl", {
-    soperator_active_checks_override_block = indent(12, local.soperator_activechecks_override_yaml)
+    soperator_active_checks_override_block = indent(14, local.soperator_activechecks_override_yaml)
 
-    backups_enabled    = var.backups_enabled
     telemetry_enabled  = var.telemetry_enabled
     accounting_enabled = var.accounting_enabled
     iam_tenant_id      = var.iam_tenant_id
     iam_project_id     = var.iam_project_id
+    k8s_cluster_id     = var.k8s_cluster_id
+
+    backups_enabled = var.backups_enabled
+    backups_config  = var.backups_enabled ? var.backups_config : null
 
     soperator_helm_repo  = local.helm.repository.slurm
     soperator_image_repo = local.image.repository
@@ -74,8 +77,10 @@ resource "helm_release" "soperator_fluxcd_cm" {
     apparmor_enabled        = var.use_default_apparmor_profile
     enable_soperator_checks = var.enable_soperator_checks
 
-    operator_version                   = var.operator_version
-    operator_feature_gates             = var.operator_feature_gates
+    operator_version = var.operator_version
+    operator_feature_gates = join(",", distinct(compact([
+      var.slurm_nodesets_enabled ? "NodeSetWorkers=true" : null,
+    ])))
     cert_manager_version               = var.cert_manager_version
     k8up_version                       = var.k8up_version
     mariadb_operator_version           = var.mariadb_operator_version
@@ -255,76 +260,43 @@ resource "helm_release" "soperator_fluxcd_cm" {
 
     slurm_nodesets_enabled    = var.slurm_nodesets_enabled
     slurm_nodesets_partitions = var.slurm_nodesets_partitions
-    node_group_workers        = var.node_group_workers_v2
-    worker_resources          = var.resources.worker
+    nodesets                  = var.worker_nodesets
 
+    releases = [
+      local_file.flux_release_rendered_nodesets.content,
+    ]
   })]
 }
 
-resource "helm_release" "flux2_sync" {
+resource "helm_release" "soperator_fluxcd_bootstrap" {
   depends_on = [
     helm_release.soperator_fluxcd_cm,
   ]
-  repository = "https://fluxcd-community.github.io/helm-charts"
-  chart      = "flux2-sync"
-  version    = "1.8.2"
 
-  # Note: Do not change the name or namespace of this resource. The below mimics the behaviour of "flux bootstrap".
-  name      = "flux-system"
-  namespace = "flux-system"
-
-  set {
-    name  = "gitRepository.spec.url"
-    value = "https://github.com/${var.github_org}/${var.github_repository}"
-  }
-  set {
-    name  = "gitRepository.spec.ref.${var.github_ref_type}"
-    value = var.github_ref_value
-  }
-  set {
-    name  = "gitRepository.spec.interval"
-    value = var.flux_interval
-  }
-  set {
-    name  = "kustomization.spec.interval"
-    value = var.flux_interval
-  }
-  set {
-    name  = "kustomization.spec.postBuild.substitute.soperator_version"
-    value = var.operator_version
-  }
-  set {
-    name  = "kustomization.spec.path"
-    value = var.flux_kustomization_path
-  }
-  set {
-    name  = "kustomization.spec.prune"
-    value = "true"
-  }
-}
-
-resource "helm_release" "soperator_fluxcd_ad_hoc_cm" {
-  name       = "soperator-fluxcd"
-  repository = local.helm.repository.raw
-  chart      = local.helm.chart.raw
-  version    = local.helm.version.raw
+  name       = "soperator-fluxcd-bootstrap"
+  repository = var.operator_stable ? "oci://cr.eu-north1.nebius.cloud/soperator" : "oci://cr.eu-north1.nebius.cloud/soperator-unstable"
+  chart      = "helm-soperator-fluxcd-bootstrap"
+  version    = var.operator_version
   namespace  = var.flux_namespace
 
-  values = [templatefile("${path.module}/templates/helm_values/soperator_fluxcd.yaml.tftpl", {})]
+  set {
+    name  = "helmRepository.url"
+    value = var.operator_stable ? "oci://cr.eu-north1.nebius.cloud/soperator" : "oci://cr.eu-north1.nebius.cloud/soperator-unstable"
+  }
 
   lifecycle {
     ignore_changes = all
   }
 }
 
-resource "helm_release" "cm_terraform_soperator_activechecks" {
-  name       = "terraform-soperator-activechecks"
+resource "helm_release" "soperator_fluxcd_ad_hoc_cm" {
+  name       = "soperator-fluxcd-values"
   repository = local.helm.repository.raw
   chart      = local.helm.chart.raw
   version    = local.helm.version.raw
   namespace  = var.flux_namespace
 
-  values = [templatefile("${path.module}/templates/helm_values/cm_terraform_soperator_activechecks.yaml.tftpl", {})]
+  values = [templatefile("${path.module}/templates/helm_values/soperator_fluxcd.yaml.tftpl", {})]
 
   lifecycle {
     ignore_changes = all

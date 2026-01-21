@@ -67,7 +67,7 @@ variable "node_group_nfs" {
   description = "NFS node group specification."
   type = object({
     enabled = bool
-    spec = object({
+    spec = optional(object({
       size = number
       resource = object({
         platform = string
@@ -78,7 +78,7 @@ variable "node_group_nfs" {
         size_gibibytes       = number
         block_size_kibibytes = number
       })
-    })
+    }))
   })
 }
 
@@ -224,6 +224,12 @@ variable "node_ssh_access_users" {
     public_keys = list(string)
   }))
   default = []
+}
+
+variable "nvidia_admin_conf_lines" {
+  description = "Lines to write to /etc/modprobe.d/nvidia_admin.conf via cloud-init (GPU workers only)."
+  type        = list(string)
+  default     = []
 }
 
 variable "use_preinstalled_gpu_drivers" {

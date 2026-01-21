@@ -98,6 +98,11 @@ output "key_slurm_nodeset_name" {
   value       = local.label_key.slurm_nodeset
 }
 
+output "key_slurm_nodeset_name_name" {
+  description = "Slurm nodeset-name label key."
+  value       = local.label_key.slurm_nodeset_name
+}
+
 output "key_slurm_workload_name" {
   description = "Slurm workload label key."
   value       = local.label_key.slurm_workload

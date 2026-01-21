@@ -81,7 +81,8 @@ variable "production" {
 }
 
 variable "iam_merge_request_url" {
-  type = string
+  type    = string
+  default = ""
 
   validation {
     condition     = (var.production && length(var.iam_merge_request_url) > 0) || !var.production
@@ -481,6 +482,12 @@ variable "use_preinstalled_gpu_drivers" {
   default     = false
 }
 
+variable "nvidia_admin_conf_lines" {
+  description = "Lines to write to /etc/modprobe.d/nvidia_admin.conf via cloud-init (GPU workers only)."
+  type        = list(string)
+  default     = []
+}
+
 variable "k8s_cluster_node_ssh_access_users" {
   description = "SSH user credentials for accessing k8s nodes."
   type = list(object({
@@ -513,12 +520,6 @@ variable "slurm_operator_stable" {
   description = "Is the version of soperator stable."
   type        = bool
   default     = true
-}
-
-variable "slurm_operator_feature_gates" {
-  description = "Feature gates for soperator. Example: 'NodeSetWorkers=true'"
-  type        = string
-  default     = ""
 }
 
 variable "slurm_nodesets_enabled" {
@@ -685,7 +686,9 @@ variable "slurm_nodeset_workers" {
     gpu_cluster = optional(object({
       infiniband_fabric = string
     }))
-    preemptible = optional(object({}))
+    preemptible      = optional(object({}))
+    features         = optional(list(string))
+    create_partition = optional(bool)
   }))
   nullable = false
   default = [{
@@ -1114,27 +1117,6 @@ variable "maintenance_ignore_node_groups" {
 # endregion Maintenance
 
 # endregion Slurm
-
-# region fluxcd
-variable "github_org" {
-  description = "The GitHub organization."
-  type        = string
-  default     = "nebius"
-}
-
-variable "github_repository" {
-  description = "The GitHub repository."
-  type        = string
-  default     = "soperator"
-}
-
-variable "flux_interval" {
-  description = "The interval for Flux to check for changes."
-  type        = string
-  default     = "1m"
-}
-
-# endregion fluxcd
 
 # region ActiveChecks
 variable "active_checks_scope" {

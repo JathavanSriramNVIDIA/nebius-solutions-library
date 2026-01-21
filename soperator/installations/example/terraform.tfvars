@@ -186,11 +186,6 @@ slurm_operator_version = "1.23.1"
 # ---
 slurm_operator_stable = true
 
-# Feature gates for soperator. Example: "NodeSetWorkers=true"
-# By default, "" (empty).
-# ---
-# slurm_operator_feature_gates = "NodeSetWorkers=true"
-
 # Enable nodesets feature for Slurm cluster. When enabled, creates separate nodesets for each worker configuration.
 # ---
 slurm_nodesets_enabled = false
@@ -200,19 +195,12 @@ slurm_nodesets_enabled = false
 # ---
 # slurm_nodesets_partitions = [
 #   {
-#     name    = "main"
-#     is_all  = true
-#     config  = "Default=YES PriorityTier=10 MaxTime=INFINITE State=UP OverSubscribe=YES"
-#   },
-#   {
-#     name    = "hidden"
-#     is_all  = true
-#     config  = "Default=NO PriorityTier=10 PreemptMode=OFF Hidden=YES MaxTime=INFINITE State=UP OverSubscribe=YES"
-#   },
-#   {
-#     name    = "background"
-#     is_all  = true
-#     config  = "Nodes=ALL Default=NO PriorityTier=1 PreemptMode=OFF Hidden=YES MaxTime=INFINITE State=UP OverSubscribe=YES"
+#     name   = "workers"
+#     is_all = false
+#     config = "Default=NO PriorityTier=10 MaxTime=INFINITE State=UP OverSubscribe=YES"
+#     nodeset_refs = [
+#       "worker",
+#     ]
 #   },
 # ]
 
@@ -336,6 +324,10 @@ slurm_nodeset_workers = [
     }
     # Change to preemptible = {} in case you want to use preemptible nodes
     preemptible = null
+    # Provide a list of strings to set Slurm Node features
+    features = null
+    # Set to `true` to create partition for the NodeSet by default
+    create_partition = null
   },
 ]
 
@@ -573,5 +565,11 @@ k8s_version = 1.32
 #     "<ENCRYPTION-METHOD2 HASH2 USER1>",
 #   ]
 # }]
+
+# Lines to write to /etc/modprobe.d/nvidia_admin.conf via cloud-init (GPU workers only).
+# ---
+nvidia_admin_conf_lines = [
+  "options nvidia NVreg_RestrictProfilingToAdminUsers=0", # Allow access to GPU counters in nsys profiler for non-root users
+]
 
 # endregion k8s
