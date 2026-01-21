@@ -18,6 +18,10 @@ locals {
           }
         }
       }
+      ibGpuPerf = {
+        drainReasonPrefix = "[node_problem]"
+        commentPrefix     = null
+      }
     }
 
     # Run what is relevant in E2E
@@ -35,8 +39,11 @@ locals {
           }
         }
       }
+      ibGpuPerf = {
+        drainReasonPrefix = "[node_problem]"
+        commentPrefix     = null
+      }
     }
-
     # Check the provisioned cluster, but don't run health-checks that take long
     prod_quick = {
       all-reduce-perf-nccl-in-docker = {
@@ -58,6 +65,10 @@ locals {
           }
         }
       }
+      ibGpuPerf = {
+        commentPrefix     = "[node_problem]"
+        drainReasonPrefix = null
+      }
     }
 
     # Run all available health-checks
@@ -74,6 +85,10 @@ locals {
             }]
           }
         }
+      }
+      ibGpuPerf = {
+        commentPrefix     = "[node_problem]"
+        drainReasonPrefix = null
       }
     }
   }
