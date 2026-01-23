@@ -81,14 +81,28 @@ check_hr_failure() {
 
   local released_reason=$(echo "$HR_JSON" | jq -r '.status.conditions[]? | select(.type=="Released") | .reason' 2>/dev/null)
   local released_message=$(echo "$HR_JSON" | jq -r '.status.conditions[]? | select(.type=="Released") | .message' 2>/dev/null)
+  local ready_reason=$(echo "$HR_JSON" | jq -r '.status.conditions[]? | select(.type=="Ready") | .reason' 2>/dev/null)
+  local ready_message=$(echo "$HR_JSON" | jq -r '.status.conditions[]? | select(.type=="Ready") | .message' 2>/dev/null)
 
-  # Check for failure reasons
+  # Check for Released condition failure reasons
   case "$released_reason" in
     InstallFailed|UpgradeFailed|GetLastReleaseFailed|ReconcileStrategyFailed)
       echo ""
       echo "ERROR: HelmRelease $HELMRELEASE_NAME has failed!"
       echo "Reason: $released_reason"
       echo "Message: $released_message"
+      print_hr_status
+      return 0
+      ;;
+  esac
+
+  # Check for Ready condition failure reasons (permanent errors that won't self-resolve)
+  case "$ready_reason" in
+    StateError)
+      echo ""
+      echo "ERROR: HelmRelease $HELMRELEASE_NAME is in error state!"
+      echo "Reason: $ready_reason"
+      echo "Message: $ready_message"
       print_hr_status
       return 0
       ;;
