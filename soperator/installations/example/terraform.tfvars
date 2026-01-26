@@ -189,7 +189,7 @@ slurm_operator_stable = true
 
 # Enable nodesets feature for Slurm cluster. When enabled, creates separate nodesets for each worker configuration.
 # ---
-slurm_nodesets_enabled = false
+slurm_nodesets_enabled = true
 
 # Partition configuration for nodesets. Used only when slurm_nodesets_enabled is true.
 # If empty, a default partition "main" with all nodes will be created.
