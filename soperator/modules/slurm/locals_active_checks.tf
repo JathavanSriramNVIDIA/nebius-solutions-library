@@ -2,12 +2,6 @@ locals {
   active_checks_scopes = {
     # Scope for dev clusters
     dev = {
-      dcgmi-diag-r2 = {
-        runAfterCreation = false
-      }
-      dcgmi-diag-r3 = {
-        runAfterCreation = false
-      }
       ssh-check = {
         k8sJobSpec = {
           jobContainer = {
@@ -26,9 +20,6 @@ locals {
 
     # Run what is relevant in E2E
     testing = {
-      dcgmi-diag-r3 = {
-        runAfterCreation = false
-      }
       ssh-check = {
         k8sJobSpec = {
           jobContainer = {
@@ -47,12 +38,6 @@ locals {
     # Check the provisioned cluster, but don't run health-checks that take long
     prod_quick = {
       all-reduce-perf-nccl-in-docker = {
-        runAfterCreation = false
-      }
-      dcgmi-diag-r2 = {
-        runAfterCreation = false
-      }
-      dcgmi-diag-r3 = {
         runAfterCreation = false
       }
       ssh-check = {
