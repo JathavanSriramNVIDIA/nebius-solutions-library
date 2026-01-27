@@ -34,12 +34,13 @@ kubectl create namespace "${GPU_OPERATOR_NAMESPACE}" --dry-run=client -o yaml | 
 helm upgrade --install gpu-operator nvidia/gpu-operator \
     --namespace "${GPU_OPERATOR_NAMESPACE}" \
     --values "${VALUES_DIR}/gpu-operator.yaml" \
-    --wait --timeout 15m
+    --timeout 10m
 
-log_success "GPU Operator deployed"
+log_success "GPU Operator deployed (pods will become ready when GPU nodes are available)"
 
-# Wait for GPU Operator pods
-wait_for_pods "${GPU_OPERATOR_NAMESPACE}" "app=gpu-operator" 300
+# Brief wait for core operator pod only (not GPU node components)
+sleep 10
+kubectl get pods -n "${GPU_OPERATOR_NAMESPACE}" --no-headers 2>/dev/null | head -5 || true
 
 # -----------------------------------------------------------------------------
 # Deploy Network Operator (for InfiniBand) - OPTIONAL
