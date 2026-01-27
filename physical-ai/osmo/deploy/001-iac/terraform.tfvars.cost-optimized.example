@@ -1,0 +1,86 @@
+# =============================================================================
+# OSMO on Nebius - Cost-Optimized Configuration
+# =============================================================================
+# This configuration minimizes costs for development and testing.
+# Estimated cost: ~$15-25 per 6-hour session (with L40S + small CPU nodes)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Required Settings (get from nebius-env-init.sh)
+# -----------------------------------------------------------------------------
+# tenant_id = "your-tenant-id"
+# parent_id = "your-project-id"
+
+# -----------------------------------------------------------------------------
+# Environment Settings
+# -----------------------------------------------------------------------------
+region       = "eu-north1"
+environment  = "dev"
+project_name = "osmo-dev"
+
+# -----------------------------------------------------------------------------
+# Network Settings
+# -----------------------------------------------------------------------------
+# Note: /16 may exhaust VPC pool capacity. Using /20 (4,096 addresses) instead.
+vpc_cidr = "10.0.0.0/20"
+
+# -----------------------------------------------------------------------------
+# Kubernetes Cluster
+# -----------------------------------------------------------------------------
+k8s_version            = null  # Use latest
+etcd_cluster_size      = 1     # Single node for dev
+enable_public_endpoint = true  # Direct API access
+
+# -----------------------------------------------------------------------------
+# CPU Nodes (minimal for system workloads)
+# -----------------------------------------------------------------------------
+cpu_nodes_count            = 2
+cpu_nodes_platform         = "cpu-d3"
+cpu_nodes_preset           = "4vcpu-16gb"  # Smallest viable for K8s
+cpu_disk_size_gib          = 64
+cpu_nodes_assign_public_ip = false  # Private nodes only
+
+# CPU preset options (cpu-d3):
+#   2vcpu-8gb   - ~$0.08/hr (may be too small for K8s)
+#   4vcpu-16gb  - ~$0.11/hr (minimum recommended)
+#   8vcpu-32gb  - ~$0.22/hr (comfortable for dev)
+#   16vcpu-64gb - ~$0.44/hr (production)
+
+# -----------------------------------------------------------------------------
+# GPU Nodes (L40S - cheapest option ~$1.55/hr vs H100 ~$4-5/hr)
+# -----------------------------------------------------------------------------
+gpu_nodes_count_per_group  = 1
+gpu_node_groups            = 1
+gpu_nodes_platform         = "gpu-l40s-a"          # L40S Intel (cheapest)
+gpu_nodes_preset           = "1gpu-8vcpu-32gb"     # Single L40S GPU
+gpu_disk_size_gib          = 256
+gpu_nodes_assign_public_ip = false
+enable_gpu_cluster         = false  # No InfiniBand for L40S
+enable_gpu_taints          = true
+gpu_nodes_preemptible      = false  # Set true if your project allows preemptible GPUs
+
+# Other GPU options in eu-north1:
+#   gpu-l40s-a  (L40S Intel, 48GB) - cheapest ~$1.55/hr
+#   gpu-l40s-d  (L40S AMD, 48GB)   - cheap ~$1.55/hr
+#   gpu-h100-sxm (H100, 80GB)      - ~$4-5/hr
+#   gpu-h200-sxm (H200, 141GB)     - most expensive
+
+# -----------------------------------------------------------------------------
+# Storage (minimal)
+# -----------------------------------------------------------------------------
+enable_filestore = true
+filestore_size_gib = 256  # Smaller filestore
+
+# -----------------------------------------------------------------------------
+# PostgreSQL (Nebius Managed Service - minimal)
+# -----------------------------------------------------------------------------
+postgresql_platform      = "cpu-e2"       # cpu-e2 for eu-north1
+postgresql_preset        = "2vcpu-8gb"    # Minimum preset (cheapest)
+postgresql_disk_type     = "network-ssd"  # Required for eu-north1
+postgresql_disk_size_gib = 20
+postgresql_host_count    = 1
+
+# -----------------------------------------------------------------------------
+# WireGuard VPN (disabled for dev)
+# -----------------------------------------------------------------------------
+enable_wireguard = false
