@@ -119,11 +119,11 @@ Please run this from a Linux Shell/Ubuntu/WSL.
 
 ```bash
 cd deploy/000-prerequisites
-./install-tools.sh        # Installs: Terraform, kubectl, Helm, Nebius CLI
+./install-tools.sh        # Installs: Terraform, kubectl, Helm, Nebius CLI, OSMO CLI
 ./install-tools.sh --check  # Verify without installing
 ```
 
-Supports Linux, WSL, and macOS. See [prerequisites README](deploy/000-prerequisites/README.md) for manual installation.
+Supports Linux, WSL, and macOS. Requires Python/pip for OSMO CLI installation. See [prerequisites README](deploy/000-prerequisites/README.md) for manual installation.
 
 ### 2. Configure Nebius Environment
 

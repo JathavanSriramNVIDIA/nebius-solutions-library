@@ -6,7 +6,7 @@ This directory contains scripts to set up your environment for deploying OSMO on
 
 | Script | Purpose |
 |--------|---------|
-| `install-tools.sh` | Install required tools (Terraform, kubectl, Helm, Nebius CLI) |
+| `install-tools.sh` | Install required tools (Terraform, kubectl, Helm, Nebius CLI, OSMO CLI) |
 | `nebius-env-init.sh` | Configure Nebius environment variables |
 | `secrets-init.sh` | **NEW** Generate and store secrets in MysteryBox |
 | `wireguard-client-setup.sh` | Set up WireGuard VPN client |

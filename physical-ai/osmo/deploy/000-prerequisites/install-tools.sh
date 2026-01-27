@@ -142,6 +142,15 @@ check_nebius() {
     return 1
 }
 
+check_osmo() {
+    if check_command osmo; then
+        local version=$(osmo --version 2>/dev/null | head -1 || echo "unknown")
+        print_status "OSMO CLI installed ($version)"
+        return 0
+    fi
+    return 1
+}
+
 install_terraform() {
     echo "Installing Terraform..."
     case $OS in
@@ -193,6 +202,25 @@ install_nebius() {
     
     print_warning "Nebius CLI installed to ~/.nebius/bin/"
     print_warning "Add to your shell profile: export PATH=\"\$HOME/.nebius/bin:\$PATH\""
+}
+
+install_osmo() {
+    echo "Installing OSMO CLI..."
+    # Check for pip/pip3
+    if command -v pip3 &>/dev/null; then
+        pip3 install --user nvidia-osmo
+    elif command -v pip &>/dev/null; then
+        pip install --user nvidia-osmo
+    else
+        print_error "pip not found. Please install Python and pip first."
+        return 1
+    fi
+    print_status "OSMO CLI installed"
+    # pip --user installs to ~/.local/bin
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        print_warning "You may need to add ~/.local/bin to PATH:"
+        echo "         export PATH=\"\$HOME/.local/bin:\$PATH\""
+    fi
 }
 
 # Main logic
@@ -254,6 +282,17 @@ main() {
         else
             install_nebius
             check_nebius || print_error "Failed to install Nebius CLI"
+        fi
+    fi
+    
+    # Check/Install OSMO CLI (for backend deployment and workflow management)
+    if ! check_osmo; then
+        all_installed=false
+        if $check_only; then
+            print_error "OSMO CLI not installed"
+        else
+            install_osmo
+            check_osmo || print_error "Failed to install OSMO CLI"
         fi
     fi
     
