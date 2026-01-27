@@ -207,7 +207,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    This deploys the core OSMO services:
    - Creates `osmo` namespace and PostgreSQL/MEK secrets
    - Initializes databases on Nebius Managed PostgreSQL
-   - Deploys Redis, Keycloak, and OSMO services (API, agent, worker, logger)
+   - Deploys Redis and OSMO services (API, agent, worker, logger)
    - Sets up nginx proxy for routing
    
    > **Note:** The script automatically retrieves PostgreSQL password and MEK from MysteryBox if you ran `secrets-init.sh` earlier.
