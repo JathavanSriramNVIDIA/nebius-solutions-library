@@ -66,7 +66,7 @@ Customize deployments by editing files in `values/`:
 
 ### Environment Variables
 
-Configure via `defaults.conf`:
+Configure via `defaults.sh`:
 
 ```bash
 # Namespaces
@@ -117,7 +117,7 @@ nebius mysterybox v1 payload get-by-key \
 kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
 # Open http://localhost:3000
 # User: admin
-# Password: (shown during deployment or in defaults.conf)
+# Password: (shown during deployment or in defaults.sh)
 ```
 
 ### Prometheus
