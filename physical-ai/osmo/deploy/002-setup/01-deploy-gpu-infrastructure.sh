@@ -53,9 +53,13 @@ if [[ "${ENABLE_NETWORK_OPERATOR:-false}" == "true" ]]; then
     helm upgrade --install network-operator nvidia/network-operator \
         --namespace "${NETWORK_OPERATOR_NAMESPACE}" \
         --values "${VALUES_DIR}/network-operator.yaml" \
-        --wait --timeout 10m
+        --timeout 10m
 
     log_success "Network Operator deployed"
+    
+    # Brief wait and show status
+    sleep 5
+    kubectl get pods -n "${NETWORK_OPERATOR_NAMESPACE}" --no-headers 2>/dev/null | head -5 || true
 else
     log_info "Skipping Network Operator (set ENABLE_NETWORK_OPERATOR=true to install)"
 fi
@@ -75,9 +79,13 @@ helm upgrade --install kai-scheduler \
     --version "${KAI_VERSION}" \
     --namespace "${KAI_SCHEDULER_NAMESPACE}" \
     --values "${VALUES_DIR}/kai-scheduler.yaml" \
-    --wait --timeout 5m
+    --timeout 5m
 
 log_success "KAI Scheduler deployed"
+
+# Brief wait and show status
+sleep 5
+kubectl get pods -n "${KAI_SCHEDULER_NAMESPACE}" --no-headers 2>/dev/null | head -5 || true
 
 # -----------------------------------------------------------------------------
 # Verify Installation
