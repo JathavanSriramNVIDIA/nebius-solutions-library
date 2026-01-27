@@ -1,10 +1,12 @@
 #cloud-config
+%{ if ssh_public_key != null && ssh_public_key != "" ~}
 users:
   - name: ${ssh_user_name}
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
     ssh_authorized_keys:
       - ${ssh_public_key}
+%{ endif ~}
 
 package_update: true
 packages:
