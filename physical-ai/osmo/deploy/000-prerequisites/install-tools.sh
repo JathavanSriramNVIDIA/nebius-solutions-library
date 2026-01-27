@@ -132,8 +132,7 @@ check_nebius() {
         local version=$("$nebius_path" version 2>/dev/null | head -1 || echo "unknown")
         print_status "Nebius CLI installed ($version)"
         if [[ "$nebius_path" == "$HOME/.nebius/bin/nebius" ]] && ! command -v nebius &>/dev/null; then
-            print_warning "Nebius CLI not in PATH. Add to your shell profile:"
-            echo "         export PATH=\"\$HOME/.nebius/bin:\$PATH\""
+            print_warning "Nebius CLI not in PATH (will be added when you run: source ./nebius-env-init.sh)"
         fi
         return 0
     fi
