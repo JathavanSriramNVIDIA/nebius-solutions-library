@@ -2,11 +2,14 @@
 
 Deploy [NVIDIA OSMO](https://nvidia.github.io/OSMO/main/user_guide/index.html) on [Nebius AI Cloud](https://nebius.com/ai-cloud) in minutes. Run simulation, training, and edge workflows on the wide variety of Nebius GPU instances—write once in YAML, run anywhere.
 
+## Tested in/with
+- eu-north-1
 
 ## Known Gaps and TODOs
 
 | Gap | Current Workaround | Status |
 |-----|-------------------|--------|
+| Multi-region support | Code tested only in eu-north1; other regions have different GPU platforms (H100/H200/L40S), CPU platforms (cpu-d3 vs cpu-e2), disk types, and PostgreSQL presets | TODO |
 | No managed Redis service | Deploy Redis in-cluster via Helm | Workaround in place |
 | MysteryBox lacks K8s CSI integration | Scripts retrieve secrets and create K8s secrets manually | Workaround in place |
 | No External DNS service | Manual DNS configuration required | Not addressed |
