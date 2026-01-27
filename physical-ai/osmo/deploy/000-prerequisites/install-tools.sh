@@ -206,21 +206,15 @@ install_nebius() {
 
 install_osmo() {
     echo "Installing OSMO CLI..."
-    # Check for pip/pip3
-    if command -v pip3 &>/dev/null; then
-        pip3 install --user nvidia-osmo
-    elif command -v pip &>/dev/null; then
-        pip install --user nvidia-osmo
-    else
-        print_error "pip not found. Please install Python and pip first."
-        return 1
+    # Install via official NVIDIA install script
+    # See: https://nvidia.github.io/OSMO/main/user_guide/getting_started/install/index.html
+    curl -fsSL https://raw.githubusercontent.com/NVIDIA/OSMO/refs/heads/main/install.sh | bash
+    
+    # The install script typically adds osmo to ~/.local/bin or similar
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        export PATH="$HOME/.local/bin:$PATH"
     fi
     print_status "OSMO CLI installed"
-    # pip --user installs to ~/.local/bin
-    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-        print_warning "You may need to add ~/.local/bin to PATH:"
-        echo "         export PATH=\"\$HOME/.local/bin:\$PATH\""
-    fi
 }
 
 # Main logic
