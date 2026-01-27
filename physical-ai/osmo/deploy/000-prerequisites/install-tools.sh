@@ -96,9 +96,19 @@ check_terraform() {
 
 check_kubectl() {
     if check_command kubectl; then
-        local version=$(kubectl version --client -o json 2>/dev/null | grep -o '"gitVersion": *"[^"]*"' | head -1 | cut -d'"' -f4 | tr -d 'v')
+        # Use --client flag with timeout to prevent hanging
+        # Some kubectl versions try to contact server even with --client
+        local version=$(timeout 5 kubectl version --client --short 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | tr -d 'v')
+        if [[ -z "$version" ]]; then
+            # Fallback: try without --short flag
+            version=$(timeout 5 kubectl version --client 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        fi
         if [[ -n "$version" ]]; then
             print_status "kubectl $version installed"
+            return 0
+        else
+            # kubectl exists but version check failed - still report as installed
+            print_status "kubectl installed (version check skipped)"
             return 0
         fi
     fi
@@ -173,7 +183,8 @@ install_helm() {
 
 install_nebius() {
     echo "Installing Nebius CLI..."
-    curl -sSL https://storage.eu-north1.nebius.cloud/nebius/install.sh | bash
+    # Note: URL updated per https://docs.nebius.com/cli/install
+    curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
     
     # Add to PATH for current session
     export PATH="$HOME/.nebius/bin:$PATH"
