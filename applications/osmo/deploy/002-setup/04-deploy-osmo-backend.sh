@@ -147,7 +147,8 @@ if [[ -z "${OSMO_SERVICE_TOKEN:-}" ]]; then
             --service --roles osmo-backend 2>&1)
         
         # Extract token from output (format: "Access token: <token>")
-        OSMO_SERVICE_TOKEN=$(echo "$TOKEN_OUTPUT" | grep -oP 'Access token: \K.*' || echo "")
+        # Note: Using sed instead of grep -P for macOS compatibility
+        OSMO_SERVICE_TOKEN=$(echo "$TOKEN_OUTPUT" | sed -n 's/.*Access token: \(.*\)/\1/p' || echo "")
         
         if [[ -z "$OSMO_SERVICE_TOKEN" ]]; then
             log_error "Failed to create service token"

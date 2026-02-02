@@ -233,7 +233,8 @@ create_postgresql_secret() {
     
     if [[ -n "$existing_id" ]]; then
         echo -e "${YELLOW}[!]${NC} Secret '$POSTGRESQL_SECRET_NAME' already exists (ID: $existing_id)"
-        read -p "  Replace existing secret? (y/N): " replace
+        printf "  Replace existing secret? (y/N): "
+        read replace
         if [[ "$replace" =~ ^[Yy]$ ]]; then
             echo "  Deleting existing secret..."
             delete_secret "$existing_id"
@@ -278,7 +279,8 @@ create_mek_secret() {
     
     if [[ -n "$existing_id" ]]; then
         echo -e "${YELLOW}[!]${NC} Secret '$MEK_SECRET_NAME' already exists (ID: $existing_id)"
-        read -p "  Replace existing secret? (y/N): " replace
+        printf "  Replace existing secret? (y/N): "
+        read replace
         if [[ "$replace" =~ ^[Yy]$ ]]; then
             echo "  Deleting existing secret..."
             delete_secret "$existing_id"

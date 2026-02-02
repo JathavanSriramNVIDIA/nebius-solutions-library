@@ -83,11 +83,10 @@ log_info "Using Nebius Managed PostgreSQL..."
         POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-${OSMO_POSTGRES_PASSWORD:-""}}
         
         if [[ -z "$POSTGRES_HOST" ]]; then
-            read -p "PostgreSQL Host: " POSTGRES_HOST
+            read_prompt_var "PostgreSQL Host" POSTGRES_HOST ""
         fi
         if [[ -z "$POSTGRES_PASSWORD" ]]; then
-            read -s -p "PostgreSQL Password: " POSTGRES_PASSWORD
-            echo ""
+            read_secret_var "PostgreSQL Password" POSTGRES_PASSWORD
         fi
     fi
 

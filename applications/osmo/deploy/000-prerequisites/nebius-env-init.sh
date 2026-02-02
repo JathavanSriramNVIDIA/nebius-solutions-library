@@ -82,14 +82,16 @@ prompt_with_default() {
     local default=$2
     local var_name=$3
     local value
-    
+
     if [[ -n "$default" ]]; then
-        read -p "$prompt [$default]: " value
+        printf "%s [%s]: " "$prompt" "$default"
+        read value
         value=${value:-$default}
     else
-        read -p "$prompt: " value
+        printf "%s: " "$prompt"
+        read value
     fi
-    
+
     eval "$var_name='$value'"
 }
 
@@ -162,15 +164,18 @@ select_or_create_project() {
     echo ""
     
     local choice
-    read -p "Choose option [1/2/3]: " choice
+    printf "Choose option [1/2/3]: "
+    read choice
     
     case $choice in
         1)
-            read -p "Enter Project ID: " NEBIUS_PROJECT_ID
+            printf "Enter Project ID: "
+            read NEBIUS_PROJECT_ID
             ;;
         2)
             local project_name
-            read -p "Enter new project name: " project_name
+            printf "Enter new project name: "
+            read project_name
             
             if [[ -z "$project_name" ]]; then
                 echo -e "${RED}[ERROR]${NC} Project name cannot be empty"
@@ -193,11 +198,13 @@ select_or_create_project() {
         3)
             list_projects "$tenant_id"
             echo ""
-            read -p "Enter Project ID from the list above (or 'new' to create): " input
+            printf "Enter Project ID from the list above (or 'new' to create): "
+            read input
             
             if [[ "$input" == "new" ]]; then
                 local project_name
-                read -p "Enter new project name: " project_name
+                printf "Enter new project name: "
+                read project_name
                 
                 if [[ -z "$project_name" ]]; then
                     echo -e "${RED}[ERROR]${NC} Project name cannot be empty"
@@ -310,7 +317,8 @@ main() {
     else
         echo ""
         echo "Current project: $current_project"
-        read -p "Use this project? (Y/n/new): " use_current
+        printf "Use this project? (Y/n/new): "
+        read use_current
         
         case $use_current in
             n|N)
@@ -320,7 +328,8 @@ main() {
                 ;;
             new)
                 local project_name
-                read -p "Enter new project name: " project_name
+                printf "Enter new project name: "
+                read project_name
                 NEBIUS_PROJECT_ID=$(create_project "$NEBIUS_TENANT_ID" "$project_name")
                 if [[ $? -ne 0 || -z "$NEBIUS_PROJECT_ID" ]]; then
                     return 1
