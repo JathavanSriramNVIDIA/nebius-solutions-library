@@ -15,6 +15,10 @@ terraform {
       source  = "dstaroff/units"
       version = ">= 1.1.1"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.20"
+    }
   }
 }
 
@@ -23,3 +27,13 @@ provider "nebius" {
 }
 
 provider "random" {}
+
+provider "kubernetes" {
+  host                   = module.k8s.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.k8s.cluster_ca_certificate)
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "nebius"
+    args        = ["mk8s", "cluster", "get-credentials", "--id", module.k8s.cluster_id, "--external", "--token-only"]
+  }
+}

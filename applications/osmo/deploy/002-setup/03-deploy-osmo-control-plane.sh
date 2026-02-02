@@ -464,6 +464,16 @@ KEYCLOAK_HOST="keycloak.${OSMO_NAMESPACE}.svc.cluster.local"
 KEYCLOAK_URL="http://${KEYCLOAK_HOST}:80"
 AUTH_DOMAIN="auth-${OSMO_DOMAIN}"
 
+# SSO Identity Provider Configuration (Google and Azure AD)
+# Set these environment variables to enable SSO:
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET - from Google Cloud Console
+#   AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID - from Azure Portal
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
+GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
+AZURE_CLIENT_ID="${AZURE_CLIENT_ID:-}"
+AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET:-}"
+AZURE_TENANT_ID="${AZURE_TENANT_ID:-common}"
+
 if [[ "${DEPLOY_KEYCLOAK:-false}" == "true" ]]; then
     log_info "Deploying Keycloak for OSMO authentication..."
     log_info "Reference: https://nvidia.github.io/OSMO/main/deployment_guide/getting_started/deploy_service.html#step-2-configure-keycloak"
@@ -787,7 +797,73 @@ spec:
               "email": "osmo-admin@example.com",
               "credentials": [{"type":"password","value":"osmo-admin","temporary":false}]
             }' || echo "User may already exist"
-          
+
+          # =========================================
+          # SSO Identity Providers (Google & Azure AD)
+          # =========================================
+
+          # Configure Google Identity Provider (if credentials provided)
+          GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}"
+          GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}"
+          if [ -n "\$GOOGLE_CLIENT_ID" ] && [ -n "\$GOOGLE_CLIENT_SECRET" ]; then
+            echo "Configuring Google Identity Provider..."
+            curl -s -X POST "\${KEYCLOAK_URL}/admin/realms/osmo/identity-provider/instances" \
+              -H "Authorization: Bearer \$TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "alias": "google",
+                "displayName": "Google",
+                "providerId": "google",
+                "enabled": true,
+                "trustEmail": true,
+                "storeToken": false,
+                "addReadTokenRoleOnCreate": false,
+                "firstBrokerLoginFlowAlias": "first broker login",
+                "config": {
+                  "clientId": "'""\$GOOGLE_CLIENT_ID""'",
+                  "clientSecret": "'""\$GOOGLE_CLIENT_SECRET""'",
+                  "defaultScope": "openid email profile",
+                  "syncMode": "IMPORT"
+                }
+              }' || echo "Google IdP may already exist"
+            echo "Google Identity Provider configured"
+            echo "  Redirect URI: \${KEYCLOAK_URL}/realms/osmo/broker/google/endpoint"
+          else
+            echo "Skipping Google IdP (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET not set)"
+          fi
+
+          # Configure Azure AD (Microsoft) Identity Provider (if credentials provided)
+          AZURE_CLIENT_ID="${AZURE_CLIENT_ID}"
+          AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET}"
+          AZURE_TENANT_ID="${AZURE_TENANT_ID}"
+          if [ -n "\$AZURE_CLIENT_ID" ] && [ -n "\$AZURE_CLIENT_SECRET" ]; then
+            echo "Configuring Azure AD (Microsoft) Identity Provider..."
+            curl -s -X POST "\${KEYCLOAK_URL}/admin/realms/osmo/identity-provider/instances" \
+              -H "Authorization: Bearer \$TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "alias": "microsoft",
+                "displayName": "Microsoft",
+                "providerId": "microsoft",
+                "enabled": true,
+                "trustEmail": true,
+                "storeToken": false,
+                "addReadTokenRoleOnCreate": false,
+                "firstBrokerLoginFlowAlias": "first broker login",
+                "config": {
+                  "clientId": "'""\$AZURE_CLIENT_ID""'",
+                  "clientSecret": "'""\$AZURE_CLIENT_SECRET""'",
+                  "tenant": "'""\$AZURE_TENANT_ID""'",
+                  "defaultScope": "openid email profile",
+                  "syncMode": "IMPORT"
+                }
+              }' || echo "Microsoft IdP may already exist"
+            echo "Azure AD Identity Provider configured"
+            echo "  Redirect URI: \${KEYCLOAK_URL}/realms/osmo/broker/microsoft/endpoint"
+          else
+            echo "Skipping Azure AD IdP (AZURE_CLIENT_ID/AZURE_CLIENT_SECRET not set)"
+          fi
+
           echo ""
           echo "========================================="
           echo "Keycloak OSMO configuration complete!"
@@ -795,6 +871,12 @@ spec:
           echo "Realm: osmo"
           echo "Clients: osmo-device, osmo-browser-flow"
           echo "Test user: osmo-admin / osmo-admin"
+          if [ -n "\$GOOGLE_CLIENT_ID" ]; then
+            echo "Google SSO: Enabled"
+          fi
+          if [ -n "\$AZURE_CLIENT_ID" ]; then
+            echo "Azure AD SSO: Enabled"
+          fi
           echo ""
 EOF
 
@@ -830,6 +912,27 @@ EOF
     echo "OSMO Auth Endpoints (in-cluster):"
     echo "  Token: ${KEYCLOAK_URL}/realms/osmo/protocol/openid-connect/token"
     echo "  Auth:  ${KEYCLOAK_URL}/realms/osmo/protocol/openid-connect/auth"
+    echo ""
+
+    # Show SSO configuration status
+    if [[ -n "${GOOGLE_CLIENT_ID}" ]]; then
+        echo "Google SSO: Enabled"
+        echo "  Redirect URI (for Google Console): http://<KEYCLOAK_URL>/realms/osmo/broker/google/endpoint"
+    fi
+    if [[ -n "${AZURE_CLIENT_ID}" ]]; then
+        echo "Azure AD SSO: Enabled (Tenant: ${AZURE_TENANT_ID})"
+        echo "  Redirect URI (for Azure Portal): http://<KEYCLOAK_URL>/realms/osmo/broker/microsoft/endpoint"
+    fi
+    if [[ -z "${GOOGLE_CLIENT_ID}" && -z "${AZURE_CLIENT_ID}" ]]; then
+        echo "SSO Identity Providers: Not configured"
+        echo "  To enable SSO, set environment variables before running:"
+        echo "    export GOOGLE_CLIENT_ID=<your-google-client-id>"
+        echo "    export GOOGLE_CLIENT_SECRET=<your-google-client-secret>"
+        echo "    export AZURE_CLIENT_ID=<your-azure-client-id>"
+        echo "    export AZURE_CLIENT_SECRET=<your-azure-client-secret>"
+        echo "    export AZURE_TENANT_ID=<your-azure-tenant-id>  # or 'common' for multi-tenant"
+        echo "  Then re-run: DEPLOY_KEYCLOAK=true ./03-deploy-osmo-control-plane.sh"
+    fi
     echo ""
     
     # Keycloak is deployed but we disable OSMO's internal auth
@@ -1235,18 +1338,24 @@ log_success "Service ports verified"
 # -----------------------------------------------------------------------------
 # Step 11: Deploy NGINX Proxy
 # -----------------------------------------------------------------------------
-# The nginx proxy routes traffic to osmo-service, osmo-logger, and osmo-agent
+# The nginx proxy routes traffic to osmo-service, osmo-logger, osmo-agent, and osmo-ui
 # Required for osmo-ctrl sidecar to communicate with the OSMO service
-log_info "Deploying OSMO proxy (nginx)..."
+# NOTE: If Terraform created the osmo-proxy resources, this step will just verify them
 
-if [[ -f "${SCRIPT_DIR}/nginx-proxy.yaml" ]]; then
+if kubectl get deployment osmo-proxy -n "${OSMO_NAMESPACE}" &>/dev/null; then
+    log_info "OSMO proxy already exists (created by Terraform)"
+    kubectl rollout status deployment/osmo-proxy -n "${OSMO_NAMESPACE}" --timeout=120s || \
+        log_warning "Timeout waiting for osmo-proxy rollout"
+    log_success "OSMO proxy verified"
+elif [[ -f "${SCRIPT_DIR}/nginx-proxy.yaml" ]]; then
+    log_info "Deploying OSMO proxy (nginx)..."
     kubectl apply -f "${SCRIPT_DIR}/nginx-proxy.yaml"
     kubectl rollout status deployment/osmo-proxy -n "${OSMO_NAMESPACE}" --timeout=120s || \
         log_warning "Timeout waiting for osmo-proxy rollout"
     log_success "OSMO proxy deployed"
 else
-    log_warning "nginx-proxy.yaml not found - skipping proxy deployment"
-    log_warning "Workflows may fail without the proxy. Create nginx-proxy.yaml and apply manually."
+    log_warning "nginx-proxy.yaml not found and osmo-proxy not deployed by Terraform"
+    log_warning "Workflows may fail without the proxy. Run 'terraform apply' or create nginx-proxy.yaml manually."
 fi
 
 # -----------------------------------------------------------------------------

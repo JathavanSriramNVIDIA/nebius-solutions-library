@@ -13,7 +13,7 @@ data:
       # Logging
       access_log /dev/stdout;
       error_log /dev/stderr;
-      
+
       # Conditional WebSocket support
       # Sets Connection header to "upgrade" for WebSocket requests, "close" otherwise
       # This is important for proper handling of both WebSocket and regular HTTP requests
@@ -21,51 +21,85 @@ data:
         default upgrade;
         '' close;
       }
-      
+
       # Upstream servers
       upstream osmo-service {
         server osmo-service.osmo.svc.cluster.local:80;
       }
-      
+
       upstream osmo-logger {
         server osmo-logger.osmo.svc.cluster.local:80;
       }
-      
+
       upstream osmo-agent {
         server osmo-agent.osmo.svc.cluster.local:80;
       }
-      
+
+      upstream osmo-ui {
+        server osmo-ui.osmo.svc.cluster.local:80;
+      }
+
+      upstream keycloak {
+        server keycloak.osmo.svc.cluster.local:80;
+      }
+
       server {
         listen 80;
-        
+
         # Common proxy headers
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # WebSocket support (conditional based on Upgrade header)
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
-        
+
         # Timeouts for long-running WebSocket connections (osmo-ctrl logging)
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
-        
+
         # Route /api/logger/* to osmo-logger (WebSocket for log streaming)
         location /api/logger/ {
           proxy_pass http://osmo-logger;
         }
-        
+
         # Route /api/agent/* to osmo-agent (WebSocket for backend communication)
         location /api/agent/ {
           proxy_pass http://osmo-agent;
         }
-        
-        # Everything else to osmo-service (REST API)
-        location / {
+
+        # Route /api/* to osmo-service (REST API)
+        location /api/ {
           proxy_pass http://osmo-service;
+        }
+
+        # Route /auth/* and /realms/* to Keycloak (SSO with Google/Azure AD)
+        location /auth/ {
+          proxy_pass http://keycloak;
+        }
+
+        location /realms/ {
+          proxy_pass http://keycloak;
+        }
+
+        location /admin/ {
+          proxy_pass http://keycloak;
+        }
+
+        location /js/ {
+          proxy_pass http://keycloak;
+        }
+
+        location /resources/ {
+          proxy_pass http://keycloak;
+        }
+
+        # Route everything else to osmo-ui (Web UI)
+        location / {
+          proxy_pass http://osmo-ui;
         }
       }
     }
@@ -117,4 +151,4 @@ spec:
   ports:
   - port: 80
     targetPort: 80
-  type: ClusterIP
+  type: LoadBalancer
