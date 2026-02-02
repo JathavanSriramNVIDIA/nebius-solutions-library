@@ -1,0 +1,87 @@
+# =============================================================================
+# OSMO on Nebius - Secure Configuration with WireGuard
+# =============================================================================
+# This configuration prioritizes security with private-only access.
+# All cluster access goes through WireGuard VPN.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Required Settings (get from nebius-env-init.sh)
+# -----------------------------------------------------------------------------
+# tenant_id = "your-tenant-id"
+# parent_id = "your-project-id"
+
+# -----------------------------------------------------------------------------
+# Environment Settings
+# -----------------------------------------------------------------------------
+region       = "eu-north1"
+environment  = "staging"
+project_name = "osmo-secure"
+
+# -----------------------------------------------------------------------------
+# Network Settings
+# -----------------------------------------------------------------------------
+# Note: /16 may exhaust VPC pool capacity. Using /20 (4,096 addresses) instead.
+vpc_cidr = "10.0.0.0/20"
+
+# -----------------------------------------------------------------------------
+# Kubernetes Cluster (PRIVATE ONLY)
+# -----------------------------------------------------------------------------
+k8s_version            = null
+etcd_cluster_size      = 3
+enable_public_endpoint = false  # No public K8s API
+
+# -----------------------------------------------------------------------------
+# CPU Nodes (NO public IPs)
+# -----------------------------------------------------------------------------
+cpu_nodes_count            = 3
+cpu_nodes_platform         = "cpu-d3"
+cpu_nodes_preset           = "16vcpu-64gb"
+cpu_disk_size_gib          = 128
+cpu_nodes_assign_public_ip = false  # Private only
+
+# -----------------------------------------------------------------------------
+# GPU Nodes (NO public IPs)
+# -----------------------------------------------------------------------------
+gpu_nodes_count_per_group  = 1
+gpu_node_groups            = 1
+gpu_nodes_platform         = "gpu-h100-sxm"
+gpu_nodes_preset           = "8gpu-128vcpu-1600gb"
+gpu_disk_size_gib          = 1023
+gpu_nodes_assign_public_ip = false  # Private only
+enable_gpu_cluster         = true
+enable_gpu_taints          = true
+gpu_nodes_preemptible      = false  # Preemptible requires project permissions
+
+# -----------------------------------------------------------------------------
+# Storage
+# -----------------------------------------------------------------------------
+enable_filestore = true
+filestore_size_gib = 1024
+
+# -----------------------------------------------------------------------------
+# PostgreSQL (Nebius Managed Service)
+# -----------------------------------------------------------------------------
+postgresql_platform      = "cpu-e2"       # cpu-e2 for eu-north1
+postgresql_preset        = "2vcpu-8gb"    # Minimum preset
+postgresql_disk_type     = "network-ssd"  # Required for eu-north1
+postgresql_disk_size_gib = 50
+postgresql_host_count    = 1
+
+# -----------------------------------------------------------------------------
+# WireGuard VPN (REQUIRED for this config)
+# -----------------------------------------------------------------------------
+enable_wireguard        = true
+wireguard_platform      = "cpu-e2"
+wireguard_preset        = "2vcpu-8gb"
+wireguard_disk_size_gib = 64
+wireguard_port          = 51820
+wireguard_network       = "10.8.0.0/24"
+wireguard_ui_port       = 5000
+
+# =============================================================================
+# After deployment:
+# 1. Set up WireGuard client: ./000-prerequisites/wireguard-client-setup.sh
+# 2. Connect to VPN
+# 3. Access cluster via private endpoint
+# =============================================================================

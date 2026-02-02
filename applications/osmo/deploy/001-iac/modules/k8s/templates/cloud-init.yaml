@@ -1,0 +1,26 @@
+#cloud-config
+%{ if ssh_public_key != null && ssh_public_key != "" ~}
+users:
+  - name: ${ssh_user_name}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+%{ endif ~}
+
+package_update: true
+packages:
+  - nfs-common
+  - curl
+  - jq
+
+%{ if enable_filestore ~}
+runcmd:
+  # Mount filestore if attached
+  - |
+    if [ -b /dev/disk/by-id/virtio-data ]; then
+      mkdir -p /mnt/data
+      mount -t virtiofs data /mnt/data || true
+      echo "data /mnt/data virtiofs defaults 0 0" >> /etc/fstab
+    fi
+%{ endif ~}
