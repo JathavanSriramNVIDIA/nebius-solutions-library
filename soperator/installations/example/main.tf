@@ -313,7 +313,7 @@ module "slurm" {
   maintenance_ignore_node_groups = var.maintenance_ignore_node_groups
 
   use_preinstalled_gpu_drivers  = var.use_preinstalled_gpu_drivers
-  cuda_major_version            = var.slurm_nodeset_workers[0].resource.platform == "gpu-b300-sxm" ? 13 : 12
+  cuda_version                  = var.slurm_nodeset_workers[0].resource.platform == "gpu-b300-sxm" ? "13.0.2" : "12.9.0"
   controller_state_on_filestore = var.controller_state_on_filestore
 
   node_count = {

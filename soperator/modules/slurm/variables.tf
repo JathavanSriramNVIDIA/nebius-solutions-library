@@ -792,8 +792,8 @@ variable "slurm_nodesets_partitions" {
 
 # endregion Nodesets
 
-variable "cuda_major_version" {
-  description = "CUDA major version used for populate-jail image selection."
-  type        = number
-  default     = 12
+variable "cuda_version" {
+  description = "CUDA version used for populate-jail image selection and active checks."
+  type        = string
+  default     = "12.9.0"
 }
