@@ -9,26 +9,54 @@ locals {
 
   gres_config_by_platforms = tomap({
     (local.platforms.gpu-h100-sxm) = [
-      "TODO",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia0 Cores=32-63 Links=1,1,1,1,-1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia1 Cores=32-63 Links=1,1,1,1,1,-1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia2 Cores=32-63 Links=1,1,1,1,1,1,-1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia3 Cores=32-63 Links=1,1,1,1,1,1,1,-1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia4 Cores=0-31 Links=-1,1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia5 Cores=0-31 Links=1,-1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia6 Cores=0-31 Links=1,1,-1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia7 Cores=0-31 Links=1,1,1,-1,1,1,1,1 Flags=nvidia_gpu_env",
     ]
     (local.platforms.gpu-h200-sxm) = [
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia0 Cores=32-63 Links=1,1,1,1,1,1,1,-1 Flags=nvidia_gpu_env",
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia1 Cores=32-63 Links=1,1,1,1,1,1,-1,1 Flags=nvidia_gpu_env",
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia2 Cores=32-63 Links=1,1,1,1,1,-1,1,1 Flags=nvidia_gpu_env",
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia3 Cores=32-63 Links=1,1,1,1,-1,1,1,1 Flags=nvidia_gpu_env",
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia4 Cores=0-31 Links=1,1,1,-1,1,1,1,1 Flags=nvidia_gpu_env",
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia5 Cores=0-31 Links=1,1,-1,1,1,1,1,1 Flags=nvidia_gpu_env",
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia6 Cores=0-31 Links=1,-1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
-      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia7 Cores=0-31 Links=-1,1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia0 Cores=32-63 Links=1,1,1,1,-1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia1 Cores=32-63 Links=1,1,1,1,1,-1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia2 Cores=32-63 Links=1,1,1,1,1,1,-1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia3 Cores=32-63 Links=1,1,1,1,1,1,1,-1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia4 Cores=0-31 Links=-1,1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia5 Cores=0-31 Links=1,-1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia6 Cores=0-31 Links=1,1,-1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_h200 File=/dev/nvidia7 Cores=0-31 Links=1,1,1,-1,1,1,1,1 Flags=nvidia_gpu_env",
     ]
     (local.platforms.gpu-b200-sxm) = [
-      "TODO",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia0 Cores=40-79 Links=1,1,1,1,-1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia1 Cores=40-79 Links=1,1,1,1,1,-1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia2 Cores=40-79 Links=1,1,1,1,1,1,-1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia3 Cores=40-79 Links=1,1,1,1,1,1,1,-1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia4 Cores=0-39 Links=-1,1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia5 Cores=0-39 Links=1,-1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia6 Cores=0-39 Links=1,1,-1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia7 Cores=0-39 Links=1,1,1,-1,1,1,1,1 Flags=nvidia_gpu_env",
     ]
     (local.platforms.gpu-b200-sxm-a) = [
-      "TODO",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia0 Cores=40-79 Links=1,1,1,1,1,1,1,-1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia1 Cores=40-79 Links=1,1,1,1,1,1,-1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia2 Cores=40-79 Links=1,1,1,1,1,-1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia3 Cores=40-79 Links=1,1,1,1,-1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia4 Cores=0-39 Links=1,1,1,-1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia5 Cores=0-39 Links=1,1,-1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia6 Cores=0-39 Links=1,-1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b200 File=/dev/nvidia7 Cores=0-39 Links=-1,1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
     ]
     (local.platforms.gpu-b300-sxm) = [
-      "TODO",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia0 Cores=48-95 Links=1,1,1,1,1,1,1,-1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia1 Cores=48-95 Links=1,1,1,1,1,1,-1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia2 Cores=48-95 Links=1,1,1,1,1,-1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia3 Cores=48-95 Links=1,1,1,1,-1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia4 Cores=0-47 Links=1,1,1,-1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia5 Cores=0-47 Links=1,1,-1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia6 Cores=0-47 Links=1,-1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
+      "AutoDetect=off Name=gpu Type=nvidia_b300 File=/dev/nvidia7 Cores=0-47 Links=-1,1,1,1,1,1,1,1 Flags=nvidia_gpu_env",
     ]
   })
 }
