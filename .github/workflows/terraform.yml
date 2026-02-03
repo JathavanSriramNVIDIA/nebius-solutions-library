@@ -73,13 +73,25 @@ jobs:
     - name: Terraform Format
       run: terraform fmt -check -recursive . ../modules
 
-  terraform:
+  approve_terraform:
     needs: detect-changes
     name: 'Terraform ${{ matrix.solution }}'
     environment:
       name: project-e00pjzzrtk1fs3yavy
     concurrency:
       group: project-e00pjzzrtk1fs3yavy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Print the input name to STDOUT
+      run: | 
+        echo The username is ${{ inputs.username }} created PR ${{ github.event.number }} which triggers the pipeline, and requries approval
+
+  terraform:
+    needs: detect-changes
+    name: 'Terraform ${{ matrix.solution }}'
+    environment:
+      name: project-e00pjzzrtk1fs3yavy
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
