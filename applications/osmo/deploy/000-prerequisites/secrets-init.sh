@@ -36,6 +36,99 @@ echo ""
 # Helper Functions
 # -----------------------------------------------------------------------------
 
+# Read input with a prompt into a variable (bash/zsh compatible).
+read_prompt_var() {
+    local prompt=$1
+    local var_name=$2
+    local default=$3
+    local value=""
+    local read_from="/dev/tty"
+    local write_to="/dev/tty"
+
+    if [[ ! -r "/dev/tty" || ! -w "/dev/tty" ]]; then
+        read_from="/dev/stdin"
+        write_to="/dev/stdout"
+    fi
+
+    if [[ -n "$default" ]]; then
+        printf "%s [%s]: " "$prompt" "$default" >"$write_to"
+    else
+        printf "%s: " "$prompt" >"$write_to"
+    fi
+
+    IFS= read -r value <"$read_from"
+    if [[ -z "$value" && -n "$default" ]]; then
+        value="$default"
+    fi
+
+    eval "$var_name='$value'"
+}
+
+# Return a random integer in range [min, max] using /dev/urandom.
+rand_int() {
+    local min=$1
+    local max=$2
+    local range=$((max - min + 1))
+    local num=""
+
+    while :; do
+        num=$(od -An -N2 -tu2 /dev/urandom | tr -d ' ')
+        if [[ -n "$num" ]]; then
+            echo $((min + num % range))
+            return 0
+        fi
+    done
+}
+
+# Pick a random character from a set.
+rand_char_from_set() {
+    local set=$1
+    local idx
+    idx=$(rand_int 0 $((${#set} - 1)))
+    printf "%s" "${set:$idx:1}"
+}
+
+# Shuffle a string using Fisher-Yates.
+shuffle_string() {
+    local input=$1
+    local -a chars
+    local i j tmp
+    local len=${#input}
+
+    if [[ -n "${BASH_VERSION:-}" ]]; then
+        for ((i = 0; i < len; i++)); do
+            chars[i]="${input:i:1}"
+        done
+        for ((i = len - 1; i > 0; i--)); do
+            j=$(rand_int 0 "$i")
+            tmp="${chars[i]}"
+            chars[i]="${chars[j]}"
+            chars[j]="$tmp"
+        done
+        local out=""
+        for ((i = 0; i < len; i++)); do
+            out+="${chars[i]}"
+        done
+        printf "%s" "$out"
+    else
+        # zsh uses 1-based indexing for arrays and string subscripts
+        for ((i = 1; i <= len; i++)); do
+            chars[i]="${input[$i]}"
+        done
+        for ((i = len; i > 1; i--)); do
+            j=$(rand_int 1 "$i")
+            tmp="${chars[i]}"
+            chars[i]="${chars[j]}"
+            chars[j]="$tmp"
+        done
+        local out=""
+        for ((i = 1; i <= len; i++)); do
+            out+="${chars[i]}"
+        done
+        printf "%s" "$out"
+    fi
+}
+
 get_nebius_path() {
     if command -v nebius &>/dev/null; then
         command -v nebius
@@ -99,15 +192,15 @@ generate_postgresql_password() {
         password=$(openssl rand -base64 32 | tr -d '/+=\n' | head -c 28)
         
         # Add required character types
-        local lower=$(echo "abcdefghijklmnopqrstuvwxyz" | fold -w1 | shuf | head -1)
-        local upper=$(echo "ABCDEFGHIJKLMNOPQRSTUVWXYZ" | fold -w1 | shuf | head -1)
-        local digit=$(echo "0123456789" | fold -w1 | shuf | head -1)
-        local special=$(echo '!#$^&*()-_=+' | fold -w1 | shuf | head -1)
+        local lower=$(rand_char_from_set "abcdefghijklmnopqrstuvwxyz")
+        local upper=$(rand_char_from_set "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        local digit=$(rand_char_from_set "0123456789")
+        local special=$(rand_char_from_set '!#$^&*()-_=+')
         
         password="${password}${lower}${upper}${digit}${special}"
         
         # Shuffle the password
-        password=$(echo "$password" | fold -w1 | shuf | tr -d '\n')
+        password=$(shuffle_string "$password")
         
         # Verify requirements
         if [[ ${#password} -ge 32 ]] && \
@@ -233,8 +326,7 @@ create_postgresql_secret() {
     
     if [[ -n "$existing_id" ]]; then
         echo -e "${YELLOW}[!]${NC} Secret '$POSTGRESQL_SECRET_NAME' already exists (ID: $existing_id)"
-        printf "  Replace existing secret? (y/N): "
-        read replace
+        read_prompt_var "  Replace existing secret? (y/N)" replace ""
         if [[ "$replace" =~ ^[Yy]$ ]]; then
             echo "  Deleting existing secret..."
             delete_secret "$existing_id"
@@ -279,8 +371,7 @@ create_mek_secret() {
     
     if [[ -n "$existing_id" ]]; then
         echo -e "${YELLOW}[!]${NC} Secret '$MEK_SECRET_NAME' already exists (ID: $existing_id)"
-        printf "  Replace existing secret? (y/N): "
-        read replace
+        read_prompt_var "  Replace existing secret? (y/N)" replace ""
         if [[ "$replace" =~ ^[Yy]$ ]]; then
             echo "  Deleting existing secret..."
             delete_secret "$existing_id"

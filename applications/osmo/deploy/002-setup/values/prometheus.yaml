@@ -4,6 +4,8 @@
 # Prometheus
 prometheus:
   prometheusSpec:
+    # Some CRDs require this to be >= 60
+    maximumStartupDurationSeconds: 60
     retention: 15d
     
     resources:

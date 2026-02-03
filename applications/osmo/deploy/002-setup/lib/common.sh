@@ -27,6 +27,56 @@ log_error() {
     echo -e "${RED}[✗]${NC} $1"
 }
 
+# Read input with a prompt into a variable (bash/zsh compatible).
+read_prompt_var() {
+    local prompt=$1
+    local var_name=$2
+    local default=$3
+    local value=""
+    local read_from="/dev/tty"
+    local write_to="/dev/tty"
+
+    if [[ ! -r "/dev/tty" || ! -w "/dev/tty" ]]; then
+        read_from="/dev/stdin"
+        write_to="/dev/stdout"
+    fi
+
+    if [[ -n "$default" ]]; then
+        printf "%s [%s]: " "$prompt" "$default" >"$write_to"
+    else
+        printf "%s: " "$prompt" >"$write_to"
+    fi
+
+    IFS= read -r value <"$read_from"
+    if [[ -z "$value" && -n "$default" ]]; then
+        value="$default"
+    fi
+
+    eval "$var_name='$value'"
+}
+
+# Read a secret value into a variable (no echo).
+read_secret_var() {
+    local prompt=$1
+    local var_name=$2
+    local value=""
+    local read_from="/dev/tty"
+    local write_to="/dev/tty"
+
+    if [[ ! -r "/dev/tty" || ! -w "/dev/tty" ]]; then
+        read_from="/dev/stdin"
+        write_to="/dev/stdout"
+    fi
+
+    printf "%s: " "$prompt" >"$write_to"
+    stty -echo <"$read_from"
+    IFS= read -r value <"$read_from"
+    stty echo <"$read_from"
+    printf "\n" >"$write_to"
+
+    eval "$var_name='$value'"
+}
+
 # Check if command exists
 check_command() {
     command -v "$1" &>/dev/null

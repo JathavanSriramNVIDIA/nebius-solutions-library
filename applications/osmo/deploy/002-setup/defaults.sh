@@ -31,14 +31,7 @@ export PROMETHEUS_RETENTION_DAYS="15"
 export LOKI_RETENTION_DAYS="7"
 export GRAFANA_ADMIN_PASSWORD=""  # Auto-generated if empty
 
-# Paths (compatible with bash and zsh)
-if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
-    export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-elif [[ -n "${ZSH_VERSION:-}" ]]; then
-    # zsh - use %x prompt expansion for script path
-    export SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
-else
-    export SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
+# Paths
+export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export VALUES_DIR="${SCRIPT_DIR}/values"
 export LIB_DIR="${SCRIPT_DIR}/lib"

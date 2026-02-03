@@ -1,3 +1,4 @@
+
 resource "kubernetes_deployment" "boltz2" {
   metadata {
     name      = "boltz2"

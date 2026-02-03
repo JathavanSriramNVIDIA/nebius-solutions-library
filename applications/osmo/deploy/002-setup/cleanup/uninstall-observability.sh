@@ -5,14 +5,7 @@
 
 set -e
 
-# Determine script directory (works in bash and zsh)
-if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-elif [[ -n "${ZSH_VERSION:-}" ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/common.sh"
 source "${SCRIPT_DIR}/../defaults.sh"
 
@@ -23,8 +16,35 @@ echo "========================================"
 echo ""
 
 log_warning "This will remove Prometheus, Grafana, and Loki"
-printf "Continue? (y/N): "
-read confirm
+# Read input with a prompt into a variable (bash/zsh compatible).
+read_prompt_var() {
+    local prompt=$1
+    local var_name=$2
+    local default=$3
+    local value=""
+    local read_from="/dev/tty"
+    local write_to="/dev/tty"
+
+    if [[ ! -r "/dev/tty" || ! -w "/dev/tty" ]]; then
+        read_from="/dev/stdin"
+        write_to="/dev/stdout"
+    fi
+
+    if [[ -n "$default" ]]; then
+        printf "%s [%s]: " "$prompt" "$default" >"$write_to"
+    else
+        printf "%s: " "$prompt" >"$write_to"
+    fi
+
+    IFS= read -r value <"$read_from"
+    if [[ -z "$value" && -n "$default" ]]; then
+        value="$default"
+    fi
+
+    eval "$var_name='$value'"
+}
+
+read_prompt_var "Continue? (y/N)" confirm ""
 if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
     log_info "Cancelled"
     exit 0

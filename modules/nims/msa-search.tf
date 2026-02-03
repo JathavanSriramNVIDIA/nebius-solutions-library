@@ -1,3 +1,4 @@
+
 resource "kubernetes_deployment" "msa_search" {
   metadata {
     name      = "msa-search"

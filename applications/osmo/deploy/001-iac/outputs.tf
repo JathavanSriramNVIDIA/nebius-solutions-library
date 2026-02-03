@@ -133,53 +133,36 @@ output "wireguard" {
 }
 
 # -----------------------------------------------------------------------------
-# OSMO Proxy Outputs
-# -----------------------------------------------------------------------------
-output "osmo_proxy" {
-  description = "OSMO Proxy LoadBalancer details"
-  value = {
-    external_ip = try(kubernetes_service_v1.osmo_proxy.status[0].load_balancer[0].ingress[0].ip, null)
-    url         = try("http://${kubernetes_service_v1.osmo_proxy.status[0].load_balancer[0].ingress[0].ip}", null)
-    ui_url      = try("http://${kubernetes_service_v1.osmo_proxy.status[0].load_balancer[0].ingress[0].ip}/", null)
-    api_url     = try("http://${kubernetes_service_v1.osmo_proxy.status[0].load_balancer[0].ingress[0].ip}/api/", null)
-  }
-}
-
-# -----------------------------------------------------------------------------
 # Connection Instructions
 # -----------------------------------------------------------------------------
 output "next_steps" {
   description = "Next steps after deployment"
   value       = <<-EOT
-
+    
     ========================================
     OSMO on Nebius - Deployment Complete
     ========================================
-
+    
     1. Get Kubernetes credentials:
        nebius mk8s cluster get-credentials --id ${module.k8s.cluster_id} --external
-
+    
     2. Verify cluster access:
        kubectl get nodes
-
+    
     ${var.enable_wireguard ? "3. Set up WireGuard VPN:\n       cd ../000-prerequisites && ./wireguard-client-setup.sh\n       WireGuard UI: ${module.wireguard[0].ui_url}\n    \n    4. " : "3. "}Deploy OSMO components:
        cd ../002-setup
        ./01-deploy-gpu-infrastructure.sh
        ./02-deploy-observability.sh
        ./03-deploy-osmo-control-plane.sh
        ./04-deploy-osmo-backend.sh
-
-    OSMO Access:
-       UI:  ${try("http://${kubernetes_service_v1.osmo_proxy.status[0].load_balancer[0].ingress[0].ip}/", "(LoadBalancer IP pending)")}
-       API: ${try("http://${kubernetes_service_v1.osmo_proxy.status[0].load_balancer[0].ingress[0].ip}/api/", "(LoadBalancer IP pending)")}
-
+    
     ${var.enable_managed_postgresql ? "PostgreSQL Connection (Managed):\n       Host: ${module.platform.postgresql_host}\n       Port: ${module.platform.postgresql_port}\n       Database: ${module.platform.postgresql_database}\n       Username: ${module.platform.postgresql_username}" : "PostgreSQL: Using in-cluster PostgreSQL (deployed via Helm in 03-deploy-osmo-control-plane.sh)"}
-
+    
     Object Storage:
        Bucket: ${module.platform.storage_bucket_name}
        Endpoint: ${module.platform.storage_endpoint}
-
+    
     ${var.enable_container_registry ? "Container Registry:\n       Name: ${module.platform.container_registry_name}\n       Endpoint: ${module.platform.container_registry_endpoint}\n       Docker login: docker login ${module.platform.container_registry_endpoint}" : "Container Registry: Disabled (set enable_container_registry = true to enable)"}
-
+    
   EOT
 }

@@ -1,3 +1,4 @@
+
 resource "kubernetes_deployment" "genmol" {
   metadata {
     name      = "genmol"

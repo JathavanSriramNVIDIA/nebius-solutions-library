@@ -1,6 +1,4 @@
-
 resource "kubernetes_namespace" "nims" {
-
   metadata {
     name = var.namespace
   }
@@ -98,3 +96,5 @@ resource "kubernetes_service" "openfold3_lb" {
     }
   }
 }
+
+

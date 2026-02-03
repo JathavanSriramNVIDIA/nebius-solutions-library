@@ -27,6 +27,11 @@ is_wsl() {
     grep -qi microsoft /proc/version 2>/dev/null
 }
 
+# Check if jq is installed
+has_jq() {
+    command -v jq &>/dev/null
+}
+
 # Get Nebius CLI path
 get_nebius_path() {
     if command -v nebius &>/dev/null; then
@@ -76,23 +81,41 @@ check_nebius_auth() {
     return 1
 }
 
+# Read input with a prompt into a variable (bash/zsh compatible).
+read_prompt_var() {
+    local prompt=$1
+    local var_name=$2
+    local default=$3
+    local value=""
+    local read_from="/dev/tty"
+    local write_to="/dev/tty"
+
+    if [[ ! -r "/dev/tty" || ! -w "/dev/tty" ]]; then
+        read_from="/dev/stdin"
+        write_to="/dev/stdout"
+    fi
+
+    if [[ -n "$default" ]]; then
+        printf "%s [%s]: " "$prompt" "$default" >"$write_to"
+    else
+        printf "%s: " "$prompt" >"$write_to"
+    fi
+
+    IFS= read -r value <"$read_from"
+    if [[ -z "$value" && -n "$default" ]]; then
+        value="$default"
+    fi
+
+    eval "$var_name='$value'"
+}
+
 # Interactive prompt with default value
 prompt_with_default() {
     local prompt=$1
     local default=$2
     local var_name=$3
-    local value
 
-    if [[ -n "$default" ]]; then
-        printf "%s [%s]: " "$prompt" "$default"
-        read value
-        value=${value:-$default}
-    else
-        printf "%s: " "$prompt"
-        read value
-    fi
-
-    eval "$var_name='$value'"
+    read_prompt_var "$prompt" "$var_name" "$default"
 }
 
 # List existing projects in a tenant
@@ -164,18 +187,15 @@ select_or_create_project() {
     echo ""
     
     local choice
-    printf "Choose option [1/2/3]: "
-    read choice
+    read_prompt_var "Choose option [1/2/3]" choice ""
     
     case $choice in
         1)
-            printf "Enter Project ID: "
-            read NEBIUS_PROJECT_ID
+            read_prompt_var "Enter Project ID" NEBIUS_PROJECT_ID ""
             ;;
         2)
             local project_name
-            printf "Enter new project name: "
-            read project_name
+            read_prompt_var "Enter new project name" project_name ""
             
             if [[ -z "$project_name" ]]; then
                 echo -e "${RED}[ERROR]${NC} Project name cannot be empty"
@@ -198,13 +218,11 @@ select_or_create_project() {
         3)
             list_projects "$tenant_id"
             echo ""
-            printf "Enter Project ID from the list above (or 'new' to create): "
-            read input
+            read_prompt_var "Enter Project ID from the list above (or 'new' to create)" input ""
             
             if [[ "$input" == "new" ]]; then
                 local project_name
-                printf "Enter new project name: "
-                read project_name
+                read_prompt_var "Enter new project name" project_name ""
                 
                 if [[ -z "$project_name" ]]; then
                     echo -e "${RED}[ERROR]${NC} Project name cannot be empty"
@@ -272,18 +290,52 @@ main() {
     local current_project="${NEBIUS_PROJECT_ID:-}"
     local current_region="${NEBIUS_REGION:-eu-north1}"
     
+    # Sanitize previously set values in case they were corrupted by a failed prompt
+    if [[ -n "$current_tenant" && ! "$current_tenant" =~ ^tenant-[a-z0-9]+$ ]]; then
+        current_tenant=""
+    fi
+    if [[ -n "$current_project" && ! "$current_project" =~ ^project-[a-z0-9]+$ ]]; then
+        current_project=""
+    fi
+
     # Try to list tenants to help user find their tenant ID
     echo "Fetching available tenants..."
     local tenants=$("$nebius_path" iam tenant list --format json 2>/dev/null)
     if [[ -n "$tenants" && "$tenants" != "[]" ]]; then
         echo ""
         echo "Available tenants:"
-        echo "$tenants" | jq -r '.[] | "  - \(.metadata.name): \(.metadata.id)"' 2>/dev/null || true
-        # Auto-detect if only one tenant
-        local tenant_count=$(echo "$tenants" | jq -r 'length' 2>/dev/null || echo "0")
-        if [[ "$tenant_count" == "1" && -z "$current_tenant" ]]; then
-            current_tenant=$(echo "$tenants" | jq -r '.[0].metadata.id' 2>/dev/null)
-            echo -e "${GREEN}[✓]${NC} Auto-detected tenant: $current_tenant"
+        if has_jq; then
+            local page_token=""
+            local total_count=0
+            local last_tenant_id=""
+            while :; do
+                if [[ -n "$page_token" ]]; then
+                    tenants=$("$nebius_path" iam tenant list --format json --page-token "$page_token" 2>/dev/null)
+                else
+                    tenants=$("$nebius_path" iam tenant list --format json 2>/dev/null)
+                fi
+
+                echo "$tenants" | jq -r '.items // . | map(select(.metadata.name | startswith("billing-test") | not)) | .[] | "  - \(.metadata.name): \(.metadata.id)"' 2>/dev/null || true
+                local page_count
+                page_count=$(echo "$tenants" | jq -r '(.items // .) | map(select(.metadata.name | startswith("billing-test") | not)) | length' 2>/dev/null || echo "0")
+                total_count=$((total_count + page_count))
+                if [[ "$page_count" -gt 0 ]]; then
+                    last_tenant_id=$(echo "$tenants" | jq -r '(.items // .) | map(select(.metadata.name | startswith("billing-test") | not)) | .[-1].metadata.id' 2>/dev/null)
+                fi
+
+                page_token=$(echo "$tenants" | jq -r '.next_page_token // empty' 2>/dev/null)
+                if [[ -z "$page_token" ]]; then
+                    break
+                fi
+            done
+
+            # Auto-detect if only one tenant across all pages
+            if [[ "$total_count" == "1" && -z "$current_tenant" ]]; then
+                current_tenant="$last_tenant_id"
+                echo -e "${GREEN}[✓]${NC} Auto-detected tenant: $current_tenant"
+            fi
+        else
+            echo "  (jq not found; run 'brew install jq' to show tenants)"
         fi
     fi
     
@@ -317,8 +369,7 @@ main() {
     else
         echo ""
         echo "Current project: $current_project"
-        printf "Use this project? (Y/n/new): "
-        read use_current
+        read_prompt_var "Use this project? (Y/n/new)" use_current ""
         
         case $use_current in
             n|N)
@@ -328,8 +379,7 @@ main() {
                 ;;
             new)
                 local project_name
-                printf "Enter new project name: "
-                read project_name
+                read_prompt_var "Enter new project name" project_name ""
                 NEBIUS_PROJECT_ID=$(create_project "$NEBIUS_TENANT_ID" "$project_name")
                 if [[ $? -ne 0 || -z "$NEBIUS_PROJECT_ID" ]]; then
                     return 1
