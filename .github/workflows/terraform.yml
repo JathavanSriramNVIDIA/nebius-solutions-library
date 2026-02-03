@@ -57,6 +57,7 @@ jobs:
           echo "solutions=$json" >> $GITHUB_OUTPUT
     
   terraform-format:
+    needs: detect-changes
     runs-on: ubuntu-latest
     name: 'Terraform Format Check'
 
@@ -74,7 +75,7 @@ jobs:
       run: terraform fmt -check -recursive . ../modules
 
   approve_terraform:
-    needs: detect-changes
+    needs: terraform-format
     name: 'Terraform ${{ matrix.solution }}'
     environment:
       name: project-e00pjzzrtk1fs3yavy
@@ -88,7 +89,7 @@ jobs:
         echo The username is ${{ inputs.username }} created PR ${{ github.event.number }} which triggers the pipeline, and requries approval
 
   terraform:
-    needs: approve_terraform
+    needs: [approve_terraform, detect-changes]
     name: 'Terraform ${{ matrix.solution }}'
     environment:
       name: project-e00pjzzrtk1fs3yavy
