@@ -88,7 +88,7 @@ jobs:
         echo The username is ${{ inputs.username }} created PR ${{ github.event.number }} which triggers the pipeline, and requries approval
 
   terraform:
-    needs: detect-changes
+    needs: approve_terraform
     name: 'Terraform ${{ matrix.solution }}'
     environment:
       name: project-e00pjzzrtk1fs3yavy
