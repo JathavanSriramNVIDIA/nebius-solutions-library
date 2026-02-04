@@ -698,7 +698,11 @@ variable "slurm_nodeset_workers" {
     gpu_cluster = optional(object({
       infiniband_fabric = string
     }))
-    preemptible      = optional(object({}))
+    preemptible = optional(object({}))
+    reservation_policy = optional(object({
+      policy          = optional(string)
+      reservation_ids = optional(list(string))
+    }))
     features         = optional(list(string))
     create_partition = optional(bool)
   }))
