@@ -143,7 +143,11 @@ variable "node_group_workers_v2" {
     gpu_cluster = optional(object({
       infiniband_fabric = string
     }))
-    preemptible   = optional(object({}))
+    preemptible = optional(object({}))
+    reservation_policy = optional(object({
+      policy          = optional(string)
+      reservation_ids = optional(list(string))
+    }))
     nodeset_index = number
     subset_index  = number
   }))

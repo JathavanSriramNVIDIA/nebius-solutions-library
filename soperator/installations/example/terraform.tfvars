@@ -325,6 +325,11 @@ slurm_nodeset_workers = [
     }
     # Change to preemptible = {} in case you want to use preemptible nodes
     preemptible = null
+    # Use reservation_policy to leverage compute reservations (capacity blocks)
+    # reservation_policy = {
+    #   policy          = "AUTO"  # AUTO, FORBID, or STRICT
+    #   reservation_ids = ["capacityblockgroup-xYYzzzzzz"]
+    # }
     # Provide a list of strings to set Slurm Node features
     features = null
     # Set to `true` to create partition for the NodeSet by default
