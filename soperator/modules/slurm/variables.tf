@@ -774,6 +774,7 @@ variable "worker_nodesets" {
     features         = list(string)
     cpu_topology     = map(number)
     gres_name        = optional(string)
+    gres_config      = list(string)
     create_partition = bool
   }))
   default = []

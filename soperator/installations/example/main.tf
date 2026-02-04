@@ -38,17 +38,18 @@ locals {
   # V2 node_group_workers for new-style deployments (with nodesets)
   node_group_workers_v2 = flatten([for i, nodeset in var.slurm_nodeset_workers : [
     for subset in range(ceil(nodeset.size / 100.0)) : {
-      name          = nodeset.name
-      size          = min(100, nodeset.size - subset * 100)
-      min_size      = 0
-      max_size      = max(1, min(100, nodeset.size - subset * 100))
-      autoscaling   = true
-      resource      = nodeset.resource
-      boot_disk     = nodeset.boot_disk
-      gpu_cluster   = nodeset.gpu_cluster
-      nodeset_index = i
-      subset_index  = subset
-      preemptible   = nodeset.preemptible
+      name               = nodeset.name
+      size               = min(100, nodeset.size - subset * 100)
+      min_size           = 0
+      max_size           = max(1, min(100, nodeset.size - subset * 100))
+      autoscaling        = true
+      resource           = nodeset.resource
+      boot_disk          = nodeset.boot_disk
+      gpu_cluster        = nodeset.gpu_cluster
+      nodeset_index      = i
+      subset_index       = subset
+      preemptible        = nodeset.preemptible
+      reservation_policy = nodeset.reservation_policy
     }
   ]])
 }
@@ -472,6 +473,7 @@ module "slurm" {
     )
     cpu_topology     = module.resources.cpu_topology_by_platform[nodeset.resource.platform][nodeset.resource.preset]
     gres_name        = lookup(module.resources.gres_name_by_platform, nodeset.resource.platform, null)
+    gres_config      = lookup(module.resources.gres_config_by_platform, nodeset.resource.platform, null)
     create_partition = nodeset.create_partition != null ? nodeset.create_partition : false
   }]
 

@@ -55,3 +55,8 @@ output "gres_name_by_platform" {
   description = "GRes name by platform."
   value       = local.gres_by_platforms
 }
+
+output "gres_config_by_platform" {
+  description = "GRes config by platform."
+  value       = local.gres_config_by_platforms
+}
