@@ -337,11 +337,10 @@ slurm_nodeset_workers = [
   },
 ]
 
-# GPU driver presets. Update these values to move clusters to a newer CUDA/driver
-#driver_presets = {}
+# Per-platform CUDA versions consumed by Slurm/operator (e.g., 12.8.2). Keys are platform IDs (e.g., gpu-h100-sxm).
+#platform_cuda_versions = {}
 
-# Per-platform overrides. Module defaults keep CUDA 12.8 for all platforms
-# except B300 (CUDA 13.0). Override here only when you need a different mapping.
+# Per-platform GPU driver presets. Keys are platform IDs (e.g., gpu-h100-sxm); values are driver presets (e.g., cuda13.0).
 #platform_driver_presets = {}
 
 # Driverfull mode is used to run Slurm jobs with GPU drivers installed on the worker nodes.

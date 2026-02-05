@@ -477,17 +477,20 @@ variable "k8s_version" {
   }
 }
 
-variable "driver_presets" {
-  description = "Map of named GPU driver presets to the driver string expected by Nebius MK8s."
+variable "platform_cuda_versions" {
+  description = "Per-platform CUDA versions consumed by Slurm/operator (e.g., 12.8.2). Keys are platform IDs (e.g., gpu-h100-sxm)."
   type        = map(string)
   default = {
-    cuda12-8 = "cuda12.8"
-    cuda13-0 = "cuda13.0"
+    gpu-h100-sxm   = "12.9.0"
+    gpu-h200-sxm   = "12.9.0"
+    gpu-b200-sxm   = "12.9.0"
+    gpu-b200-sxm-a = "12.9.0"
+    gpu-b300-sxm   = "13.0.2"
   }
 }
 
 variable "platform_driver_presets" {
-  description = "Optional per-platform override for GPU driver presets. Keys are platform IDs (e.g., gpu-h100-sxm); values are driver presets (e.g., cuda13.0)."
+  description = "Per-platform GPU driver presets. Keys are platform IDs (e.g., gpu-h100-sxm); values are driver presets (e.g., cuda13.0)."
   type        = map(string)
   default = {
     gpu-h100-sxm   = "cuda12.8"
