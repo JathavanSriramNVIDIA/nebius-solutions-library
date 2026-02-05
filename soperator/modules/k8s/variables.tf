@@ -49,7 +49,7 @@ variable "company_name" {
 variable "driver_presets" {
   description = "Map of named GPU driver presets to the driver string expected by Nebius MK8s."
   type        = map(string)
-  default = {}
+  default     = {}
 }
 
 variable "platform_driver_presets" {
