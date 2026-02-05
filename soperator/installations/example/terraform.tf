@@ -65,4 +65,7 @@ provider "helm" {
 
 module "resources" {
   source = "../../modules/available_resources"
+
+  driver_presets          = var.driver_presets
+  platform_driver_presets = var.platform_driver_presets
 }

@@ -185,6 +185,8 @@ module "k8s" {
   k8s_version                  = var.k8s_version
   name                         = local.k8s_cluster_name
   company_name                 = var.company_name
+  driver_presets               = var.driver_presets
+  platform_driver_presets      = var.platform_driver_presets
   use_preinstalled_gpu_drivers = var.use_preinstalled_gpu_drivers
 
   etcd_cluster_size = var.etcd_cluster_size

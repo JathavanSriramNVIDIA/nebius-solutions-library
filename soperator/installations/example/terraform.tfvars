@@ -337,6 +337,13 @@ slurm_nodeset_workers = [
   },
 ]
 
+# GPU driver presets. Update these values to move clusters to a newer CUDA/driver
+#driver_presets = {}
+
+# Per-platform overrides. Module defaults keep CUDA 12.8 for all platforms
+# except B300 (CUDA 13.0). Override here only when you need a different mapping.
+#platform_driver_presets = {}
+
 # Driverfull mode is used to run Slurm jobs with GPU drivers installed on the worker nodes.
 use_preinstalled_gpu_drivers = true
 
