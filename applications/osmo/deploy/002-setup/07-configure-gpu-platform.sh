@@ -123,7 +123,7 @@ fi
 log_success "GPU platform configuration complete"
 echo ""
 echo "To submit a GPU workflow:"
-echo "  osmo workflow submit workflows/osmo/gpu_test.yaml"
+echo "  osmo workflow submit workflows/osmo/gpu_test.yaml -p default"
 echo ""
 echo "Or test via curl:"
 echo "  curl -X POST ${OSMO_URL}/api/workflow -H 'Content-Type: application/yaml' --data-binary @workflows/osmo/gpu_test.yaml"
