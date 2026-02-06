@@ -549,7 +549,9 @@ resources:
                           storage: 50Gi
                       storageClassName: "compute-csi-network-ssd-ext4"
                     %{~ endif ~}
-              %{~ if !slurm_nodesets_enabled ~}
+              %{~ if slurm_nodesets_enabled ~}
+              worker: null
+              %{~ else ~}
               worker:
                 size: ${slurm_cluster.nodes.worker.size}
                 k8sNodeFilterName: ${slurm_cluster.k8s_node_filters.worker.name}
