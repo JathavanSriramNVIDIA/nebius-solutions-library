@@ -686,6 +686,10 @@ variable "slurm_nodeset_workers" {
   type = list(object({
     name = string
     size = number
+    autoscaling = optional(object({
+      enabled  = optional(bool, true)
+      min_size = optional(number)
+    }), {})
     resource = object({
       platform = string
       preset   = string
@@ -745,6 +749,14 @@ variable "slurm_nodeset_workers" {
       (worker.boot_disk.size_gibibytes >= 512)
     ])
     error_message = "Boot disks for worker nodes must be at least 512 GiB."
+  }
+
+  validation {
+    condition = alltrue([
+      for worker in var.slurm_nodeset_workers :
+      worker.autoscaling.min_size == null || worker.autoscaling.min_size <= worker.size
+    ])
+    error_message = "Worker nodeset autoscaling.min_size must be less than or equal to size."
   }
 }
 

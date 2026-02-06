@@ -38,11 +38,15 @@ locals {
   # V2 node_group_workers for new-style deployments (with nodesets)
   node_group_workers_v2 = flatten([for i, nodeset in var.slurm_nodeset_workers : [
     for subset in range(ceil(nodeset.size / 100.0)) : {
-      name               = nodeset.name
-      size               = min(100, nodeset.size - subset * 100)
-      min_size           = 0
+      name = nodeset.name
+      size = min(100, nodeset.size - subset * 100)
+      min_size = (
+        nodeset.autoscaling.enabled && nodeset.autoscaling.min_size != null
+        ? min(100, max(0, nodeset.autoscaling.min_size - subset * 100)) # fill-first distribution
+        : min(100, nodeset.size - subset * 100)                         # min=max
+      )
       max_size           = max(1, min(100, nodeset.size - subset * 100))
-      autoscaling        = true
+      autoscaling        = nodeset.autoscaling.enabled
       resource           = nodeset.resource
       boot_disk          = nodeset.boot_disk
       gpu_cluster        = nodeset.gpu_cluster
