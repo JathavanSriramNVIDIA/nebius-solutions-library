@@ -346,6 +346,12 @@ slurm_nodeset_workers = [
   },
 ]
 
+# Per-platform CUDA versions consumed by Slurm/operator (e.g., 12.8.2). Keys are platform IDs (e.g., gpu-h100-sxm).
+#platform_cuda_versions = {}
+
+# Per-platform GPU driver presets. Keys are platform IDs (e.g., gpu-h100-sxm); values are driver presets (e.g., cuda13.0).
+#platform_driver_presets = {}
+
 # Driverfull mode is used to run Slurm jobs with GPU drivers installed on the worker nodes.
 use_preinstalled_gpu_drivers = true
 

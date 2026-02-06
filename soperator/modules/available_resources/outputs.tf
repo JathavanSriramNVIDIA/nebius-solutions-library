@@ -41,11 +41,6 @@ output "filesystem_types" {
   value       = local.filesystem_types
 }
 
-output "driver_preset_by_platform" {
-  description = "Supported driver preset by platform."
-  value       = local.platform_driver_presets
-}
-
 output "cpu_topology_by_platform" {
   description = "CPU topologies preset by platform."
   value       = local.cpu_topologies_by_platforms
