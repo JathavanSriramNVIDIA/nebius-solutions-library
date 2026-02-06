@@ -481,6 +481,8 @@ variable "platform_cuda_versions" {
   description = "Per-platform CUDA versions consumed by Slurm/operator (e.g., 12.8.2). Keys are platform IDs (e.g., gpu-h100-sxm)."
   type        = map(string)
   default = {
+    cpu-e2         = "12.9.0"
+    cpu-d3         = "12.9.0"
     gpu-h100-sxm   = "12.9.0"
     gpu-h200-sxm   = "12.9.0"
     gpu-b200-sxm   = "12.9.0"
@@ -493,6 +495,8 @@ variable "platform_driver_presets" {
   description = "Per-platform GPU driver presets. Keys are platform IDs (e.g., gpu-h100-sxm); values are driver presets (e.g., cuda13.0)."
   type        = map(string)
   default = {
+    cpu-e2         = "cuda12.8"
+    cpu-d3         = "cuda12.8"
     gpu-h100-sxm   = "cuda12.8"
     gpu-h200-sxm   = "cuda12.8"
     gpu-b200-sxm   = "cuda12.8"
