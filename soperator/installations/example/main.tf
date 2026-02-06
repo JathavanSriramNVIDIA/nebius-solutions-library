@@ -189,6 +189,7 @@ module "k8s" {
   k8s_version                  = var.k8s_version
   name                         = local.k8s_cluster_name
   company_name                 = var.company_name
+  platform_driver_presets      = var.platform_driver_presets
   use_preinstalled_gpu_drivers = var.use_preinstalled_gpu_drivers
 
   etcd_cluster_size = var.etcd_cluster_size
@@ -318,7 +319,7 @@ module "slurm" {
   maintenance_ignore_node_groups = var.maintenance_ignore_node_groups
 
   use_preinstalled_gpu_drivers  = var.use_preinstalled_gpu_drivers
-  cuda_version                  = var.slurm_nodeset_workers[0].resource.platform == "gpu-b300-sxm" ? "13.0.2" : "12.9.0"
+  cuda_version                  = lookup(var.platform_cuda_versions, var.slurm_nodeset_workers[0].resource.platform)
   controller_state_on_filestore = var.controller_state_on_filestore
 
   node_count = {
