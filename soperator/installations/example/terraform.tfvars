@@ -311,6 +311,15 @@ slurm_nodeset_workers = [
   {
     name = "worker"
     size = 128
+    # Autoscaling configuration. Set enabled = false to use fixed node count instead.
+    autoscaling = {
+      enabled = true
+      # min_size options:
+      # - null: min=max, no scale-down (default, recommended - saves ~10 min on initial provisioning)
+      #   it can be changed to a number later if needed.
+      # - N: can scale down to N nodes
+      min_size = null
+    }
     resource = {
       platform = "gpu-h100-sxm"
       preset   = "8gpu-128vcpu-1600gb"
