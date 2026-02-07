@@ -8,6 +8,12 @@ locals {
   })
 
   gres_config_by_platforms = tomap({
+    (local.platforms.cpu-e2) = [
+      "AutoDetect=off"
+    ]
+    (local.platforms.cpu-d3) = [
+      "AutoDetect=off"
+    ]
     (local.platforms.gpu-h100-sxm) = [
       "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia0 Cores=32-63 Links=1,1,1,1,-1,1,1,1 Flags=nvidia_gpu_env",
       "AutoDetect=off Name=gpu Type=nvidia_h100 File=/dev/nvidia1 Cores=32-63 Links=1,1,1,1,1,-1,1,1 Flags=nvidia_gpu_env",
