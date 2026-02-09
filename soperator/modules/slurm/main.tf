@@ -16,6 +16,7 @@ resource "terraform_data" "wait_for_slurm_cluster_hr" {
 resource "terraform_data" "wait_for_soperator_activechecks_hr" {
   depends_on = [
     helm_release.soperator_fluxcd_bootstrap,
+    terraform_data.wait_for_slurm_cluster_hr,
   ]
 
   provisioner "local-exec" {
