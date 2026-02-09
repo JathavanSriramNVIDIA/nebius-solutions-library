@@ -591,6 +591,8 @@ k8s_version = 1.32
 # ---
 nvidia_admin_conf_lines = [
   "options nvidia NVreg_RestrictProfilingToAdminUsers=0", # Allow access to GPU counters in nsys profiler for non-root users
+  "options nvidia NVreg_EnableStreamMemOPs=1",
+  "options nvidia NVreg_RegistryDwords=\"PeerMappingOverride=1;\"",
 ]
 
 # endregion k8s
