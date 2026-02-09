@@ -21,57 +21,6 @@ write_files:
 %{ for line in nvidia_admin_conf_lines }
       ${line}
 %{ endfor }
-  - path: /usr/local/bin/install-gdrcopy.sh
-    owner: root:root
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      export DEBIAN_FRONTEND=noninteractive
-      export NEEDRESTART_MODE=a
-
-      log() { echo "[gdrcopy] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
-
-      CUDA_BIN="$${CUDA_BIN:-/usr/local/cuda}"
-      GDR_VERSION="$${GDR_VERSION:-v2.5.1}"
-      WORKDIR="$${WORKDIR:-/var/tmp/gdrcopy-build}"
-
-      log "start version=$${GDR_VERSION} cuda=$${CUDA_BIN}"
-
-      if [ ! -d "$${CUDA_BIN}" ]; then
-        log "ERROR: CUDA directory not found: $${CUDA_BIN}"
-        exit 1
-      fi
-
-      if dpkg -l | grep -qE '^(ii)\s+gdrdrv-dkms\s' || lsmod | grep -q '^gdrdrv'; then
-        log "already installed, skipping"
-        exit 0
-      fi
-
-      apt-get update -y
-      apt-get install -y --no-install-recommends \
-        build-essential devscripts debhelper fakeroot pkg-config dkms git ca-certificates
-
-      rm -rf "$${WORKDIR}"
-      mkdir -p "$${WORKDIR}"
-      cd "$${WORKDIR}"
-
-      log "cloning repo"
-      git clone https://github.com/NVIDIA/gdrcopy.git
-      cd gdrcopy
-      git checkout "$${GDR_VERSION}"
-
-      cd packages
-      log "building debs"
-      CUDA="$${CUDA_BIN}" ./build-deb-packages.sh
-
-      log "installing debs"
-      dpkg -i ./*libgdrapi_*.deb ./*gdrdrv-dkms_*.deb ./*gdrcopy_*.deb ./*gdrcopy-tests_*.deb || true
-      apt-get -f install -y
-
-      log "done"
-
   - path: /usr/local/bin/nvidia-conf-check.sh
     owner: root:root
     permissions: "0755"
@@ -115,7 +64,7 @@ write_files:
 
         if [ -n "$${desired_restrict_profiling}" ] && [ -n "$${current_restrict_profiling}" ] && [ "$${current_restrict_profiling}" != "$${desired_restrict_profiling}" ]; then
             mismatch=1
-            log "mismatch=EnableStreamMemOPs desired=$${desired_restrict_profiling} current=$${current_restrict_profiling}"
+            log "mismatch=RmProfilingAdminOnly desired=$${desired_restrict_profiling} current=$${current_restrict_profiling}"
         fi
 
         if [ -n "$${desired_streammem}" ] && [ -n "$${current_streammem}" ] && [ "$${current_streammem}" != "$${desired_streammem}" ]; then
@@ -144,6 +93,5 @@ write_files:
         log "end"
 
 runcmd:
-  - [ bash, -lc, "/usr/local/bin/install-gdrcopy.sh > /var/log/install-gdrcopy.log 2>&1" ]
   - [ bash, -lc, "/usr/local/bin/nvidia-conf-check.sh >> /var/log/nvidia-conf-check.log 2>&1" ]
 %{ endif }
