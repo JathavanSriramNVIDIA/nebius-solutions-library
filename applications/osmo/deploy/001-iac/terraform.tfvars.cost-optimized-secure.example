@@ -66,11 +66,13 @@ enable_gpu_cluster         = false             # No InfiniBand for L40S
 enable_gpu_taints          = true
 gpu_nodes_preemptible      = false             # Set true if your project allows preemptible GPUs
 
-# GPU options in eu-north1 (cheapest to most expensive):
-#   gpu-l40s-a   (L40S Intel, 48GB) - ~$1.55/hr
-#   gpu-l40s-d   (L40S AMD, 48GB)   - ~$1.55/hr
-#   gpu-h100-sxm (H100, 80GB)       - ~$4-5/hr
-#   gpu-h200-sxm (H200, 141GB)      - ~$5-6/hr
+# GPU options by region (see locals.tf for full list):
+#   eu-north1:   gpu-l40s-a, gpu-l40s-d, gpu-h100-sxm, gpu-h200-sxm
+#   eu-north2:   gpu-h200-sxm
+#   eu-west1:    gpu-h200-sxm
+#   me-west1:    gpu-b200-sxm-a (NVIDIA B200)
+#   uk-south1:   gpu-b300-sxm   (NVIDIA B300)
+#   us-central1: gpu-h200-sxm, gpu-b200-sxm (NVIDIA B200)
 
 # -----------------------------------------------------------------------------
 # Storage (minimal)
@@ -81,9 +83,9 @@ filestore_size_gib = 256
 # -----------------------------------------------------------------------------
 # PostgreSQL (Nebius Managed Service - minimal)
 # -----------------------------------------------------------------------------
-postgresql_platform      = "cpu-e2"       # cpu-e2 for eu-north1
+postgresql_platform      = "cpu-d3"       # cpu-d3 (all regions) or cpu-e2 (eu-north1 only)
 postgresql_preset        = "2vcpu-8gb"    # Minimum preset (cheapest)
-postgresql_disk_type     = "network-ssd"  # Required for eu-north1
+postgresql_disk_type     = "nbs-csi-sc"   # nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)
 postgresql_disk_size_gib = 20
 postgresql_host_count    = 1
 
@@ -91,7 +93,7 @@ postgresql_host_count    = 1
 # WireGuard VPN (ENABLED for secure access)
 # -----------------------------------------------------------------------------
 enable_wireguard        = true
-wireguard_platform      = "cpu-e2"
+wireguard_platform      = "cpu-d3"
 wireguard_preset        = "2vcpu-8gb"  # Smallest for VPN
 wireguard_disk_size_gib = 32
 wireguard_port          = 51820

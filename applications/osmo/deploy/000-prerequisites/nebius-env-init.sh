@@ -280,16 +280,16 @@ main() {
     echo -e "${GREEN}[✓]${NC} Nebius CLI authenticated"
     echo ""
     
-    # Step 3: Get current profile info
-    echo -e "${BLUE}Step 3: Retrieving profile information${NC}"
-    
+    # Step 3: Configure deployment settings
+    echo -e "${BLUE}Step 3: Configure deployment settings${NC}"
+
     local nebius_path=$(get_nebius_path)
-    
+
     # Check for existing environment variables or use defaults
     local current_tenant="${NEBIUS_TENANT_ID:-}"
     local current_project="${NEBIUS_PROJECT_ID:-}"
     local current_region="${NEBIUS_REGION:-eu-north1}"
-    
+
     # Sanitize previously set values in case they were corrupted by a failed prompt
     if [[ -n "$current_tenant" && ! "$current_tenant" =~ ^tenant-[a-z0-9]+$ ]]; then
         current_tenant=""
@@ -297,58 +297,61 @@ main() {
     if [[ -n "$current_project" && ! "$current_project" =~ ^project-[a-z0-9]+$ ]]; then
         current_project=""
     fi
-
-    # Try to list tenants to help user find their tenant ID
-    echo "Fetching available tenants..."
-    local tenants=$("$nebius_path" iam tenant list --format json 2>/dev/null)
-    if [[ -n "$tenants" && "$tenants" != "[]" ]]; then
-        echo ""
-        echo "Available tenants:"
-        if has_jq; then
-            local page_token=""
-            local total_count=0
-            local last_tenant_id=""
-            while :; do
-                if [[ -n "$page_token" ]]; then
-                    tenants=$("$nebius_path" iam tenant list --format json --page-token "$page_token" 2>/dev/null)
-                else
-                    tenants=$("$nebius_path" iam tenant list --format json 2>/dev/null)
-                fi
-
-                echo "$tenants" | jq -r '.items // . | map(select(.metadata.name | startswith("billing-test") | not)) | .[] | "  - \(.metadata.name): \(.metadata.id)"' 2>/dev/null || true
-                local page_count
-                page_count=$(echo "$tenants" | jq -r '(.items // .) | map(select(.metadata.name | startswith("billing-test") | not)) | length' 2>/dev/null || echo "0")
-                total_count=$((total_count + page_count))
-                if [[ "$page_count" -gt 0 ]]; then
-                    last_tenant_id=$(echo "$tenants" | jq -r '(.items // .) | map(select(.metadata.name | startswith("billing-test") | not)) | .[-1].metadata.id' 2>/dev/null)
-                fi
-
-                page_token=$(echo "$tenants" | jq -r '.next_page_token // empty' 2>/dev/null)
-                if [[ -z "$page_token" ]]; then
-                    break
-                fi
-            done
-
-            # Auto-detect if only one tenant across all pages
-            if [[ "$total_count" == "1" && -z "$current_tenant" ]]; then
-                current_tenant="$last_tenant_id"
-                echo -e "${GREEN}[✓]${NC} Auto-detected tenant: $current_tenant"
-            fi
-        else
-            echo "  (jq not found; run 'brew install jq' to show tenants)"
-        fi
-    fi
-    
     echo ""
-    
-    # Step 4: Interactive configuration
-    echo -e "${BLUE}Step 4: Configure deployment settings${NC}"
-    echo ""
-    
+
     # Tenant ID
     if [[ -z "$current_tenant" ]]; then
         echo "Tenant ID is required. Find it in the Nebius Console under IAM > Tenants"
-        prompt_with_default "Enter Tenant ID" "" "NEBIUS_TENANT_ID"
+        echo ""
+        read_prompt_var "List available tenants? (y/N)" list_tenants ""
+
+        if [[ "$list_tenants" =~ ^[yY]$ ]]; then
+            echo ""
+            echo "Fetching available tenants..."
+            local tenants=$("$nebius_path" iam tenant list --format json 2>/dev/null)
+            if [[ -n "$tenants" && "$tenants" != "[]" ]]; then
+                echo ""
+                echo "Available tenants:"
+                if has_jq; then
+                    local page_token=""
+                    local total_count=0
+                    local last_tenant_id=""
+                    while :; do
+                        if [[ -n "$page_token" ]]; then
+                            tenants=$("$nebius_path" iam tenant list --format json --page-token "$page_token" 2>/dev/null)
+                        else
+                            tenants=$("$nebius_path" iam tenant list --format json 2>/dev/null)
+                        fi
+
+                        echo "$tenants" | jq -r '.items // . | map(select(.metadata.name | startswith("billing-test") | not)) | .[] | "  - \(.metadata.name): \(.metadata.id)"' 2>/dev/null || true
+                        local page_count
+                        page_count=$(echo "$tenants" | jq -r '(.items // .) | map(select(.metadata.name | startswith("billing-test") | not)) | length' 2>/dev/null || echo "0")
+                        total_count=$((total_count + page_count))
+                        if [[ "$page_count" -gt 0 ]]; then
+                            last_tenant_id=$(echo "$tenants" | jq -r '(.items // .) | map(select(.metadata.name | startswith("billing-test") | not)) | .[-1].metadata.id' 2>/dev/null)
+                        fi
+
+                        page_token=$(echo "$tenants" | jq -r '.next_page_token // empty' 2>/dev/null)
+                        if [[ -z "$page_token" ]]; then
+                            break
+                        fi
+                    done
+
+                    # Auto-detect if only one tenant across all pages
+                    if [[ "$total_count" == "1" ]]; then
+                        current_tenant="$last_tenant_id"
+                        echo -e "${GREEN}[✓]${NC} Auto-detected tenant: $current_tenant"
+                    fi
+                else
+                    echo "  (jq not found; run 'brew install jq' to show tenants)"
+                fi
+            else
+                echo "  No tenants found."
+            fi
+            echo ""
+        fi
+
+        prompt_with_default "Enter Tenant ID" "$current_tenant" "NEBIUS_TENANT_ID"
     else
         prompt_with_default "Tenant ID" "$current_tenant" "NEBIUS_TENANT_ID"
     fi
@@ -410,13 +413,17 @@ main() {
     # Region
     echo ""
     echo "Available regions:"
-    echo "  - eu-north1 (Finland - H100)"
-    echo "  - eu-west1  (Paris - H200)"
+    echo "  - eu-north1   (Finland - H100, H200, L40S)"
+    echo "  - eu-north2   (H200)"
+    echo "  - eu-west1    (H200)"
+    echo "  - me-west1    (B200)"
+    echo "  - uk-south1   (B300)"
+    echo "  - us-central1 (H200, B200)"
     prompt_with_default "Region" "${current_region:-eu-north1}" "NEBIUS_REGION"
     
-    # Step 5: Export environment variables
+    # Step 4: Export environment variables
     echo ""
-    echo -e "${BLUE}Step 5: Setting environment variables${NC}"
+    echo -e "${BLUE}Step 4: Setting environment variables${NC}"
     
     export NEBIUS_TENANT_ID
     export NEBIUS_PROJECT_ID
@@ -448,9 +455,9 @@ main() {
     echo "    TF_VAR_parent_id   = $TF_VAR_parent_id"
     echo "    TF_VAR_region      = $TF_VAR_region"
     
-    # Step 6: Verify connectivity
+    # Step 5: Verify connectivity
     echo ""
-    echo -e "${BLUE}Step 6: Verifying connectivity${NC}"
+    echo -e "${BLUE}Step 5: Verifying connectivity${NC}"
     
     if "$nebius_path" iam project get --id "$NEBIUS_PROJECT_ID" &>/dev/null; then
         echo -e "${GREEN}[✓]${NC} Successfully connected to Nebius project"

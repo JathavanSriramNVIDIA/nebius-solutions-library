@@ -97,13 +97,13 @@ variable "postgresql_public_access" {
 }
 
 variable "postgresql_platform" {
-  description = "PostgreSQL platform (cpu-e2 for eu-north1, cpu-d3 for eu-west1)"
+  description = "PostgreSQL platform (cpu-d3 available in all regions, cpu-e2 only in eu-north1)"
   type        = string
-  default     = "cpu-e2"
-  
+  default     = "cpu-d3"
+
   validation {
     condition     = contains(["cpu-d3", "cpu-e2"], var.postgresql_platform)
-    error_message = "PostgreSQL platform must be cpu-e2 (eu-north1) or cpu-d3 (eu-west1)."
+    error_message = "PostgreSQL platform must be cpu-d3 (all regions) or cpu-e2 (eu-north1 only)."
   }
 }
 
@@ -119,13 +119,13 @@ variable "postgresql_preset" {
 }
 
 variable "postgresql_disk_type" {
-  description = "PostgreSQL disk type (network-ssd for eu-north1, nbs-csi-sc for eu-west1)"
+  description = "PostgreSQL disk type (nbs-csi-sc for cpu-d3, network-ssd for cpu-e2/eu-north1)"
   type        = string
-  default     = "network-ssd"
-  
+  default     = "nbs-csi-sc"
+
   validation {
     condition     = contains(["nbs-csi-sc", "network-ssd"], var.postgresql_disk_type)
-    error_message = "PostgreSQL disk type must be network-ssd (eu-north1) or nbs-csi-sc (eu-west1)."
+    error_message = "PostgreSQL disk type must be nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)."
   }
 }
 

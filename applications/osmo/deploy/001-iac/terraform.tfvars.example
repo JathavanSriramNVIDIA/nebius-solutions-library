@@ -15,7 +15,7 @@ parent_id = "your-project-id" # From NEBIUS_PROJECT_ID
 # -----------------------------------------------------------------------------
 # Environment Settings
 # -----------------------------------------------------------------------------
-region       = "eu-north1"    # or eu-west1
+region       = "eu-north1"    # eu-north1, eu-north2, eu-west1, me-west1, uk-south1, us-central1
 environment  = "dev"          # dev, staging, prod
 project_name = "osmo"         # Used for resource naming
 
@@ -40,7 +40,7 @@ cpu_nodes_assign_public_ip = false  # Private nodes only
 # -----------------------------------------------------------------------------
 gpu_nodes_count_per_group  = 1
 gpu_node_groups            = 1
-gpu_nodes_platform         = "gpu-h100-sxm"  # or gpu-h200-sxm
+gpu_nodes_platform         = "gpu-h100-sxm"  # See locals.tf for all GPU platforms per region
 gpu_nodes_preset           = "8gpu-128vcpu-1600gb"
 gpu_disk_size_gib          = 1023
 gpu_nodes_assign_public_ip = false  # Private nodes only
@@ -57,10 +57,10 @@ filestore_size_gib = 1024
 # -----------------------------------------------------------------------------
 # PostgreSQL (Nebius Managed Service)
 # -----------------------------------------------------------------------------
-# Platform depends on region: cpu-d3 (eu-west1), cpu-e2 (eu-north1)
-postgresql_platform      = "cpu-e2"       # Adjust for your region
+# Platform depends on region: cpu-e2 (eu-north1), cpu-d3 (all other regions)
+postgresql_platform      = "cpu-d3"       # cpu-d3 (all regions) or cpu-e2 (eu-north1 only)
 postgresql_preset        = "2vcpu-8gb"    # 2/4/8/16 vcpu options available
-postgresql_disk_type     = "network-ssd"  # network-ssd (eu-north1), nbs-csi-sc (eu-west1)
+postgresql_disk_type     = "nbs-csi-sc"   # nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)
 postgresql_disk_size_gib = 50
 postgresql_host_count    = 1
 

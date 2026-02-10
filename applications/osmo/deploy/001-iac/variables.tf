@@ -18,8 +18,8 @@ variable "region" {
   default     = "eu-north1"
 
   validation {
-    condition     = contains(["eu-north1", "eu-west1", "eu-north2", "us-central1"], var.region)
-    error_message = "Region must be one of: eu-north1, eu-west1, eu-north2, us-central1"
+    condition     = contains(["eu-north1", "eu-north2", "eu-west1", "me-west1", "uk-south1", "us-central1"], var.region)
+    error_message = "Region must be one of: eu-north1, eu-north2, eu-west1, me-west1, uk-south1, us-central1"
   }
 }
 
@@ -262,9 +262,10 @@ variable "storage_bucket_name" {
 # =============================================================================
 # PostgreSQL Configuration
 # Region-specific options:
-#   eu-west1:  platform=cpu-d3, disk=nbs-csi-sc
 #   eu-north1: platform=cpu-e2, disk=network-ssd
-# Presets (both regions): 2vcpu-8gb, 4vcpu-16gb, 8vcpu-32gb, 16vcpu-64gb
+#   All other regions (eu-north2, eu-west1, me-west1, uk-south1, us-central1):
+#     platform=cpu-d3, disk=nbs-csi-sc
+# Presets: 2vcpu-8gb, 4vcpu-16gb, 8vcpu-32gb, 16vcpu-64gb
 # =============================================================================
 
 variable "enable_managed_postgresql" {
@@ -291,9 +292,9 @@ variable "postgresql_public_access" {
 }
 
 variable "postgresql_platform" {
-  description = "PostgreSQL platform (cpu-e2 for eu-north1, cpu-d3 for eu-west1)"
+  description = "PostgreSQL platform (cpu-d3 available in all regions, cpu-e2 only in eu-north1)"
   type        = string
-  default     = "cpu-e2"
+  default     = "cpu-d3"
 }
 
 variable "postgresql_preset" {
@@ -303,9 +304,9 @@ variable "postgresql_preset" {
 }
 
 variable "postgresql_disk_type" {
-  description = "PostgreSQL disk type (network-ssd for eu-north1, nbs-csi-sc for eu-west1)"
+  description = "PostgreSQL disk type (nbs-csi-sc for cpu-d3, network-ssd for cpu-e2/eu-north1)"
   type        = string
-  default     = "network-ssd"
+  default     = "nbs-csi-sc"
 }
 
 variable "postgresql_disk_size_gib" {
@@ -401,9 +402,9 @@ variable "enable_wireguard" {
 }
 
 variable "wireguard_platform" {
-  description = "Platform for WireGuard instance"
+  description = "Platform for WireGuard instance (cpu-d3 available in all regions, cpu-e2 only in eu-north1)"
   type        = string
-  default     = "cpu-e2"
+  default     = "cpu-d3"
 }
 
 variable "wireguard_preset" {

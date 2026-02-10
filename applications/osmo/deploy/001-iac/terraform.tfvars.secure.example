@@ -62,9 +62,9 @@ filestore_size_gib = 1024
 # -----------------------------------------------------------------------------
 # PostgreSQL (Nebius Managed Service)
 # -----------------------------------------------------------------------------
-postgresql_platform      = "cpu-e2"       # cpu-e2 for eu-north1
+postgresql_platform      = "cpu-d3"       # cpu-d3 (all regions) or cpu-e2 (eu-north1 only)
 postgresql_preset        = "2vcpu-8gb"    # Minimum preset
-postgresql_disk_type     = "network-ssd"  # Required for eu-north1
+postgresql_disk_type     = "nbs-csi-sc"   # nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)
 postgresql_disk_size_gib = 50
 postgresql_host_count    = 1
 
@@ -72,7 +72,7 @@ postgresql_host_count    = 1
 # WireGuard VPN (REQUIRED for this config)
 # -----------------------------------------------------------------------------
 enable_wireguard        = true
-wireguard_platform      = "cpu-e2"
+wireguard_platform      = "cpu-d3"
 wireguard_preset        = "2vcpu-8gb"
 wireguard_disk_size_gib = 64
 wireguard_port          = 51820

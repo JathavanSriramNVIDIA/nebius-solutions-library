@@ -67,9 +67,9 @@ filestore_block_size_kib = 4
 # -----------------------------------------------------------------------------
 # PostgreSQL (Nebius Managed Service - HA)
 # -----------------------------------------------------------------------------
-postgresql_platform      = "cpu-e2"       # cpu-e2 for eu-north1
+postgresql_platform      = "cpu-d3"       # cpu-d3 (all regions) or cpu-e2 (eu-north1 only)
 postgresql_preset        = "16vcpu-64gb"  # Production size
-postgresql_disk_type     = "network-ssd"  # Required for eu-north1
+postgresql_disk_type     = "nbs-csi-sc"   # nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)
 postgresql_disk_size_gib = 100
 postgresql_host_count    = 3              # HA with replicas
 
@@ -77,7 +77,7 @@ postgresql_host_count    = 3              # HA with replicas
 # WireGuard VPN (enabled for secure access)
 # -----------------------------------------------------------------------------
 enable_wireguard     = true
-wireguard_platform   = "cpu-e2"
+wireguard_platform   = "cpu-d3"
 wireguard_preset     = "2vcpu-8gb"
 wireguard_disk_size_gib = 64
 wireguard_port       = 51820

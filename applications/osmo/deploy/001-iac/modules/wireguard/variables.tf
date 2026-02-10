@@ -42,9 +42,9 @@ variable "wg_network" {
 # -----------------------------------------------------------------------------
 
 variable "platform" {
-  description = "VM platform"
+  description = "VM platform (cpu-d3 available in all regions, cpu-e2 only in eu-north1)"
   type        = string
-  default     = "cpu-e2"
+  default     = "cpu-d3"
 }
 
 variable "preset" {

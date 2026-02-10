@@ -2,14 +2,21 @@
 
 Deploy [NVIDIA OSMO](https://nvidia.github.io/OSMO/main/user_guide/index.html) on [Nebius AI Cloud](https://nebius.com/ai-cloud) in minutes. Run simulation, training, and edge workflows on the wide variety of Nebius GPU instances—write once in YAML, run anywhere.
 
-## Tested in/with
-- eu-north-1
+## Supported Regions
+
+| Region | Available GPU Platforms |
+|--------|----------------------|
+| `eu-north1` | gpu-h100-sxm, gpu-h200-sxm, gpu-l40s-a, gpu-l40s-d |
+| `eu-north2` | gpu-h200-sxm |
+| `eu-west1` | gpu-h200-sxm |
+| `me-west1` | gpu-b200-sxm-a (NVIDIA B200) |
+| `uk-south1` | gpu-b300-sxm (NVIDIA B300) |
+| `us-central1` | gpu-h200-sxm, gpu-b200-sxm (NVIDIA B200) |
 
 ## Known Gaps and TODOs
 
 | Gap | Current Workaround | Status |
 |-----|-------------------|--------|
-| Multi-region support | Code tested only in eu-north1; other regions have different GPU platforms (H100/H200/L40S), CPU platforms (cpu-d3 vs cpu-e2), disk types, and PostgreSQL presets | TODO |
 | No managed Redis service | Deploy Redis in-cluster via Helm | Workaround in place |
 | MysteryBox lacks K8s CSI integration | Scripts retrieve secrets and create K8s secrets manually | Workaround in place |
 | No External DNS service | Manual DNS configuration required | Not addressed |
@@ -62,7 +69,8 @@ Production-ready infrastructure-as-code (Terraform) and setup scripts for:
 │  │         │         │                                                │    │    │
 │  │         └─────────┼───► ┌──────────────┐  ┌───────────────────┐   │    │    │
 │  │                   │     │  CPU Nodes   │  │    GPU Nodes      │   │    │    │
-│  │                   │     │  (cpu-d3)    │  │  (L40S/H100/H200) │   │    │    │
+│  │                   │     │  (cpu-d3)    │  │ (L40S/H100/H200/ │   │    │    │
+│  │                   │     │             │  │  B200/B300)       │   │    │    │
 │  │                   │     │  System pods │  │  Workflow pods    │   │    │    │
 │  │                   │     └──────────────┘  └───────────────────┘   │    │    │
 │  │                   │                                                │    │    │
@@ -138,7 +146,7 @@ This interactive script:
 2. **Checks authentication** - If not authenticated, provides instructions to run `nebius profile create`
 3. **Lists tenants** - Auto-detects if you have only one tenant
 4. **Configures project** - Select existing project, create new one, or list available projects
-5. **Sets region** - Choose between `eu-north1` (Finland) or `eu-west1` (Paris)
+5. **Sets region** - Choose from `eu-north1`, `eu-north2`, `eu-west1`, `me-west1`, `uk-south1`, `us-central1`
 6. **Exports environment variables** - Sets `NEBIUS_*` and `TF_VAR_*` variables for Terraform
 
 ### 3. Initialize Secrets (REQUIRED)
@@ -375,16 +383,22 @@ See `deploy/001-iac/terraform.tfvars.*.example` files for all configuration opti
 
 ## GPU Options
 
-| Platform | Preset | GPUs | VRAM | vCPUs | RAM | InfiniBand |
-|----------|--------|------|------|-------|-----|------------|
-| `gpu-l40s-a` | `1gpu-8vcpu-32gb` | 1 | 48GB | 8 | 32GB | No |
-| `gpu-l40s-d` | `1gpu-8vcpu-32gb` | 1 | 48GB | 8 | 32GB | No |
-| `gpu-h100-sxm` | `1gpu-16vcpu-200gb` | 1 | 80GB | 16 | 200GB | No |
-| `gpu-h100-sxm` | `8gpu-128vcpu-1600gb` | 8 | 640GB | 128 | 1600GB | Yes |
-| `gpu-h200-sxm` | `1gpu-16vcpu-200gb` | 1 | 141GB | 16 | 200GB | No |
-| `gpu-h200-sxm` | `8gpu-128vcpu-1600gb` | 8 | 1128GB | 128 | 1600GB | Yes |
+| Platform | Preset | GPUs | vCPUs | RAM | InfiniBand | Regions |
+|----------|--------|------|-------|-----|------------|---------|
+| `gpu-l40s-a` | `1gpu-8vcpu-32gb` | 1 | 8 | 32GB | No | eu-north1 |
+| `gpu-l40s-d` | `1gpu-8vcpu-32gb` | 1 | 8 | 32GB | No | eu-north1 |
+| `gpu-h100-sxm` | `1gpu-16vcpu-200gb` | 1 | 16 | 200GB | No | eu-north1 |
+| `gpu-h100-sxm` | `8gpu-128vcpu-1600gb` | 8 | 128 | 1600GB | Yes | eu-north1 |
+| `gpu-h200-sxm` | `1gpu-16vcpu-200gb` | 1 | 16 | 200GB | No | eu-north1, eu-north2, eu-west1, us-central1 |
+| `gpu-h200-sxm` | `8gpu-128vcpu-1600gb` | 8 | 128 | 1600GB | Yes | eu-north1, eu-north2, eu-west1, us-central1 |
+| `gpu-b200-sxm` | `1gpu-20vcpu-224gb` | 1 | 20 | 224GB | No | us-central1 |
+| `gpu-b200-sxm` | `8gpu-160vcpu-1792gb` | 8 | 160 | 1792GB | Yes | us-central1 |
+| `gpu-b200-sxm-a` | `1gpu-20vcpu-224gb` | 1 | 20 | 224GB | No | me-west1 |
+| `gpu-b200-sxm-a` | `8gpu-160vcpu-1792gb` | 8 | 160 | 1792GB | Yes | me-west1 |
+| `gpu-b300-sxm` | `1gpu-24vcpu-346gb` | 1 | 24 | 346GB | No | uk-south1 |
+| `gpu-b300-sxm` | `8gpu-192vcpu-2768gb` | 8 | 192 | 2768GB | Yes | uk-south1 |
 
-**Recommendation:** Use `gpu-l40s-a` for development/testing (cheapest option).
+**Recommendation:** Use `gpu-l40s-a` for development/testing in eu-north1 (cheapest option).
 
 ## Required Permissions
 
