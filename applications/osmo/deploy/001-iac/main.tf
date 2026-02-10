@@ -29,9 +29,9 @@ module "platform" {
   enable_managed_postgresql = var.enable_managed_postgresql
   postgresql_version        = var.postgresql_version
   postgresql_public_access  = var.postgresql_public_access
-  postgresql_platform       = var.postgresql_platform
+  postgresql_platform       = local.postgresql_platform
   postgresql_preset         = var.postgresql_preset
-  postgresql_disk_type      = var.postgresql_disk_type
+  postgresql_disk_type      = local.postgresql_disk_type
   postgresql_disk_size_gib  = var.postgresql_disk_size_gib
   postgresql_host_count     = var.postgresql_host_count
   postgresql_database_name  = var.postgresql_database_name

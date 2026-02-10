@@ -67,9 +67,9 @@ filestore_block_size_kib = 4
 # -----------------------------------------------------------------------------
 # PostgreSQL (Nebius Managed Service - HA)
 # -----------------------------------------------------------------------------
-postgresql_platform      = "cpu-d3"       # cpu-d3 (all regions) or cpu-e2 (eu-north1 only)
-postgresql_preset        = "16vcpu-64gb"  # Production size
-postgresql_disk_type     = "nbs-csi-sc"   # nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)
+# postgresql_platform    = null           # Auto: cpu-e2 (eu-north1), cpu-d3 (other regions)
+postgresql_preset        = "4vcpu-16gb"   # Production size (available in all regions)
+# postgresql_disk_type   = null           # Auto: network-ssd (eu-north1), nbs-csi-sc (other regions)
 postgresql_disk_size_gib = 100
 postgresql_host_count    = 3              # HA with replicas
 

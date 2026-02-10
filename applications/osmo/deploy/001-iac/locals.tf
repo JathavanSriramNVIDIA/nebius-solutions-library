@@ -14,34 +14,46 @@ locals {
   # Region-specific defaults
   region_defaults = {
     eu-north1 = {
-      gpu_nodes_platform = "gpu-h100-sxm"
-      gpu_nodes_preset   = "8gpu-128vcpu-1600gb"
-      infiniband_fabric  = "fabric-3"
+      gpu_nodes_platform   = "gpu-h100-sxm"
+      gpu_nodes_preset     = "8gpu-128vcpu-1600gb"
+      infiniband_fabric    = "fabric-3"
+      postgresql_platform  = "cpu-e2"
+      postgresql_disk_type = "network-ssd"
     }
     eu-north2 = {
-      gpu_nodes_platform = "gpu-h200-sxm"
-      gpu_nodes_preset   = "8gpu-128vcpu-1600gb"
-      infiniband_fabric  = "eu-north2-a"
+      gpu_nodes_platform   = "gpu-h200-sxm"
+      gpu_nodes_preset     = "8gpu-128vcpu-1600gb"
+      infiniband_fabric    = "eu-north2-a"
+      postgresql_platform  = "cpu-d3"
+      postgresql_disk_type = "network-ssd"
     }
     eu-west1 = {
-      gpu_nodes_platform = "gpu-h200-sxm"
-      gpu_nodes_preset   = "8gpu-128vcpu-1600gb"
-      infiniband_fabric  = "fabric-5"
+      gpu_nodes_platform   = "gpu-h200-sxm"
+      gpu_nodes_preset     = "8gpu-128vcpu-1600gb"
+      infiniband_fabric    = "fabric-5"
+      postgresql_platform  = "cpu-d3"
+      postgresql_disk_type = "network-ssd"
     }
     me-west1 = {
-      gpu_nodes_platform = "gpu-b200-sxm-a"
-      gpu_nodes_preset   = "8gpu-160vcpu-1792gb"
-      infiniband_fabric  = "me-west1-a"
+      gpu_nodes_platform   = "gpu-b200-sxm-a"
+      gpu_nodes_preset     = "8gpu-160vcpu-1792gb"
+      infiniband_fabric    = "me-west1-a"
+      postgresql_platform  = "cpu-d3"
+      postgresql_disk_type = "network-ssd"
     }
     uk-south1 = {
-      gpu_nodes_platform = "gpu-b300-sxm"
-      gpu_nodes_preset   = "8gpu-192vcpu-2768gb"
-      infiniband_fabric  = "uk-south1-a"
+      gpu_nodes_platform   = "gpu-b300-sxm"
+      gpu_nodes_preset     = "8gpu-192vcpu-2768gb"
+      infiniband_fabric    = "uk-south1-a"
+      postgresql_platform  = "cpu-d3"
+      postgresql_disk_type = "network-ssd"
     }
     us-central1 = {
-      gpu_nodes_platform = "gpu-h200-sxm"
-      gpu_nodes_preset   = "8gpu-128vcpu-1600gb"
-      infiniband_fabric  = "us-central1-a"
+      gpu_nodes_platform   = "gpu-h200-sxm"
+      gpu_nodes_preset     = "8gpu-128vcpu-1600gb"
+      infiniband_fabric    = "us-central1-a"
+      postgresql_platform  = "cpu-d3"
+      postgresql_disk_type = "network-ssd"
     }
   }
 
@@ -75,6 +87,9 @@ locals {
   gpu_nodes_platform = coalesce(var.gpu_nodes_platform, local.current_region.gpu_nodes_platform)
   gpu_nodes_preset   = coalesce(var.gpu_nodes_preset, local.current_region.gpu_nodes_preset)
   infiniband_fabric  = coalesce(var.infiniband_fabric, local.current_region.infiniband_fabric)
+
+  postgresql_platform  = coalesce(var.postgresql_platform, local.current_region.postgresql_platform)
+  postgresql_disk_type = coalesce(var.postgresql_disk_type, local.current_region.postgresql_disk_type)
 
   # Generate unique storage bucket name if not provided
   storage_bucket_name = var.storage_bucket_name != "" ? var.storage_bucket_name : "${local.name_prefix}-storage-${random_string.suffix.result}"

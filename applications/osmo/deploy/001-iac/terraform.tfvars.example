@@ -58,9 +58,9 @@ filestore_size_gib = 1024
 # PostgreSQL (Nebius Managed Service)
 # -----------------------------------------------------------------------------
 # Platform depends on region: cpu-e2 (eu-north1), cpu-d3 (all other regions)
-postgresql_platform      = "cpu-d3"       # cpu-d3 (all regions) or cpu-e2 (eu-north1 only)
-postgresql_preset        = "2vcpu-8gb"    # 2/4/8/16 vcpu options available
-postgresql_disk_type     = "nbs-csi-sc"   # nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)
+# postgresql_platform    = null           # Auto: cpu-e2 (eu-north1), cpu-d3 (other regions)
+postgresql_preset        = "2vcpu-8gb"    # Available presets vary by region
+# postgresql_disk_type   = null           # Auto: network-ssd (eu-north1), nbs-csi-sc (other regions)
 postgresql_disk_size_gib = 50
 postgresql_host_count    = 1
 

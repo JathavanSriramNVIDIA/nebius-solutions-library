@@ -97,13 +97,13 @@ variable "postgresql_public_access" {
 }
 
 variable "postgresql_platform" {
-  description = "PostgreSQL platform (cpu-d3 available in all regions, cpu-e2 only in eu-north1)"
+  description = "PostgreSQL platform (cpu-e2 for managed PostgreSQL in all regions)"
   type        = string
-  default     = "cpu-d3"
+  default     = "cpu-e2"
 
   validation {
     condition     = contains(["cpu-d3", "cpu-e2"], var.postgresql_platform)
-    error_message = "PostgreSQL platform must be cpu-d3 (all regions) or cpu-e2 (eu-north1 only)."
+    error_message = "PostgreSQL platform must be cpu-e2 (recommended) or cpu-d3."
   }
 }
 
@@ -113,19 +113,19 @@ variable "postgresql_preset" {
   default     = "2vcpu-8gb"
   
   validation {
-    condition     = contains(["2vcpu-8gb", "4vcpu-16gb", "8vcpu-32gb", "16vcpu-64gb"], var.postgresql_preset)
-    error_message = "PostgreSQL preset must be 2vcpu-8gb, 4vcpu-16gb, 8vcpu-32gb, or 16vcpu-64gb."
+    condition     = contains(["2vcpu-8gb", "4vcpu-16gb", "8vcpu-32gb"], var.postgresql_preset)
+    error_message = "PostgreSQL preset must be 2vcpu-8gb, 4vcpu-16gb, or 8vcpu-32gb."
   }
 }
 
 variable "postgresql_disk_type" {
-  description = "PostgreSQL disk type (nbs-csi-sc for cpu-d3, network-ssd for cpu-e2/eu-north1)"
+  description = "PostgreSQL disk type (network-ssd for managed PostgreSQL in all regions)"
   type        = string
-  default     = "nbs-csi-sc"
+  default     = "network-ssd"
 
   validation {
     condition     = contains(["nbs-csi-sc", "network-ssd"], var.postgresql_disk_type)
-    error_message = "PostgreSQL disk type must be nbs-csi-sc (cpu-d3) or network-ssd (cpu-e2/eu-north1)."
+    error_message = "PostgreSQL disk type must be network-ssd (recommended) or nbs-csi-sc."
   }
 }
 

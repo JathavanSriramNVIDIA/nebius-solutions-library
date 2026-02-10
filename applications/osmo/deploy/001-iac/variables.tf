@@ -261,11 +261,10 @@ variable "storage_bucket_name" {
 
 # =============================================================================
 # PostgreSQL Configuration
-# Region-specific options:
+# Region-specific defaults (auto-selected when set to null):
 #   eu-north1: platform=cpu-e2, disk=network-ssd
-#   All other regions (eu-north2, eu-west1, me-west1, uk-south1, us-central1):
-#     platform=cpu-d3, disk=nbs-csi-sc
-# Presets: 2vcpu-8gb, 4vcpu-16gb, 8vcpu-32gb, 16vcpu-64gb
+#   All other regions: platform=cpu-d3, disk=network-ssd
+# Safe preset across all regions: 2vcpu-8gb or 4vcpu-16gb
 # =============================================================================
 
 variable "enable_managed_postgresql" {
@@ -292,9 +291,9 @@ variable "postgresql_public_access" {
 }
 
 variable "postgresql_platform" {
-  description = "PostgreSQL platform (cpu-d3 available in all regions, cpu-e2 only in eu-north1)"
+  description = "PostgreSQL platform (null for region default: cpu-e2 in eu-north1, cpu-d3 elsewhere)"
   type        = string
-  default     = "cpu-d3"
+  default     = null
 }
 
 variable "postgresql_preset" {
@@ -304,9 +303,9 @@ variable "postgresql_preset" {
 }
 
 variable "postgresql_disk_type" {
-  description = "PostgreSQL disk type (nbs-csi-sc for cpu-d3, network-ssd for cpu-e2/eu-north1)"
+  description = "PostgreSQL disk type (null for region default: network-ssd in eu-north1, nbs-csi-sc elsewhere)"
   type        = string
-  default     = "nbs-csi-sc"
+  default     = null
 }
 
 variable "postgresql_disk_size_gib" {
