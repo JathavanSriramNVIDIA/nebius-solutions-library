@@ -962,7 +962,7 @@ resources:
           version: ${slurm_cluster.nfs_in_k8s.version}
           overrideValues:
             image:
-              repository: ${soperator_image_repo}/nfs-server
+              repository: ${soperator_image_repo_nfs}/nfs-server
               tag: ${slurm_cluster.nfs_in_k8s.version}
             nameOverride: nfs-server
             nfs:

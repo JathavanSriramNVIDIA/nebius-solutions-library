@@ -69,8 +69,9 @@ resource "helm_release" "soperator_fluxcd_cm" {
     backups_enabled = var.backups_enabled
     backups_config  = var.backups_enabled ? var.backups_config : null
 
-    soperator_helm_repo  = local.helm.repository.slurm
-    soperator_image_repo = local.image.repository
+    soperator_helm_repo      = local.helm.repository.slurm
+    soperator_image_repo     = local.image.repository
+    soperator_image_repo_nfs = var.nfs_in_k8s.use_stable_repo ? local.image.repository_stable : local.image.repository
 
     dcgm_job_mapping_enabled = var.dcgm_job_mapping_enabled
 
