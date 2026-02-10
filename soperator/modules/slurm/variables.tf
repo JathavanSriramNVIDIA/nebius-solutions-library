@@ -14,6 +14,7 @@ variable "operator_stable" {
   default     = true
 }
 
+
 variable "iam_tenant_id" {
   description = "ID of the IAM tenant."
   type        = string
@@ -330,11 +331,12 @@ variable "nfs_node_group_enabled" {
 
 variable "nfs_in_k8s" {
   type = object({
-    enabled        = bool
-    version        = optional(string)
-    size_gibibytes = optional(number)
-    storage_class  = optional(string, "compute-csi-network-ssd-io-m3-ext4")
-    threads        = optional(number)
+    enabled         = bool
+    version         = optional(string)
+    use_stable_repo = optional(bool, true)
+    size_gibibytes  = optional(number)
+    storage_class   = optional(string, "compute-csi-network-ssd-io-m3-ext4")
+    threads         = optional(number)
   })
   default = {
     enabled = false

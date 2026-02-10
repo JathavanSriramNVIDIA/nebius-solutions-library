@@ -35,8 +35,9 @@ locals {
   }
 
   image = {
-    repository = "cr.eu-north1.nebius.cloud/soperator${!var.operator_stable ? "-unstable" : ""}"
-    tag        = var.operator_version
+    repository        = "cr.eu-north1.nebius.cloud/soperator${!var.operator_stable ? "-unstable" : ""}"
+    repository_stable = "cr.eu-north1.nebius.cloud/soperator"
+    tag               = var.operator_version
   }
 
   node_filters = {
