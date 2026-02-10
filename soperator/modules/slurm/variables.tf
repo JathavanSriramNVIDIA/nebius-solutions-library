@@ -14,7 +14,6 @@ variable "operator_stable" {
   default     = true
 }
 
-
 variable "iam_tenant_id" {
   description = "ID of the IAM tenant."
   type        = string
