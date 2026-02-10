@@ -432,6 +432,7 @@ variable "nfs_in_k8s" {
   type = object({
     enabled         = bool
     version         = optional(string)
+    use_stable_repo = optional(bool, true)
     size_gibibytes  = optional(number)
     disk_type       = optional(string)
     filesystem_type = optional(string)
