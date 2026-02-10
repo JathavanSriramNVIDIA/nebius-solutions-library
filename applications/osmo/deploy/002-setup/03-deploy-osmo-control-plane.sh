@@ -1126,7 +1126,7 @@ if [[ "${DEPLOY_UI:-true}" == "true" ]]; then
 
     helm upgrade --install osmo-ui osmo/web-ui \
         --namespace "${OSMO_NAMESPACE}" \
-        --set service.type=ClusterIP \
+        --set services.ui.service.type=LoadBalancer \
         --set global.domain=osmo.local \
         --set services.ui.ingress.enabled=false \
         --set services.ui.replicas=1 \
