@@ -70,6 +70,7 @@ resource "helm_release" "soperator_fluxcd_cm" {
     backups_config  = var.backups_enabled ? var.backups_config : null
 
     soperator_helm_repo      = local.helm.repository.slurm
+    soperator_helm_repo_nfs  = var.nfs_in_k8s.use_stable_repo ? local.helm.repository.slurm_stable : local.helm.repository.slurm
     soperator_image_repo     = local.image.repository
     soperator_image_repo_nfs = var.nfs_in_k8s.use_stable_repo ? local.image.repository_stable : local.image.repository
 
