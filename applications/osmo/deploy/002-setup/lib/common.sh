@@ -198,7 +198,6 @@ wait_for_pods() {
 }
 
 # Detect OSMO service URL from the NGINX Ingress Controller's LoadBalancer.
-# Mirrors the Azure reference architecture's detect_service_url() pattern.
 #
 # Lookup order:
 #   1. LoadBalancer external IP   (cloud assigns a public/internal IP)
