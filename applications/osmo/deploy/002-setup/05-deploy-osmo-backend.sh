@@ -93,72 +93,179 @@ if [[ -z "${OSMO_SERVICE_TOKEN:-}" ]]; then
     # If still no token, automatically create one using port-forward
     if [[ -z "$OSMO_SERVICE_TOKEN" ]]; then
         log_info "No token found - automatically creating service token..."
-        
-        # Check if osmo CLI is available
-        if ! command -v osmo &>/dev/null; then
-            log_error "osmo CLI not found. Please install it first."
-            exit 1
-        fi
-        
-        # Start port-forward in background
-        log_info "Starting port-forward to OSMO service..."
-        kubectl port-forward -n osmo svc/osmo-service 8080:80 &>/dev/null &
-        PORT_FORWARD_PID=$!
-        
-        # Cleanup function to kill port-forward on exit
-        cleanup_port_forward() {
-            if [[ -n "${PORT_FORWARD_PID:-}" ]]; then
-                kill $PORT_FORWARD_PID 2>/dev/null || true
-                wait $PORT_FORWARD_PID 2>/dev/null || true
-            fi
-        }
-        trap cleanup_port_forward EXIT
-        
-        # Wait for port-forward to be ready
-        log_info "Waiting for port-forward to be ready..."
-        max_wait=30
-        elapsed=0
-        while ! curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/api/version" 2>/dev/null | grep -q "200\|401\|403"; do
-            sleep 1
-            ((elapsed += 1))
-            if [[ $elapsed -ge $max_wait ]]; then
-                log_error "Port-forward failed to start within ${max_wait}s"
-                exit 1
-            fi
-        done
-        log_success "Port-forward ready"
-        
-        # Login with dev method (since auth is disabled)
-        log_info "Logging in to OSMO (dev method)..."
-        if ! osmo login http://localhost:8080 --method dev --username admin 2>/dev/null; then
-            log_error "Failed to login to OSMO"
-            exit 1
-        fi
-        log_success "Logged in successfully"
-        
-        # Create service token
+
         TOKEN_NAME="backend-token-$(date -u +%Y%m%d%H%M%S)"
         EXPIRY_DATE=$(date -u -d "+1 year" +%F 2>/dev/null || date -u -v+1y +%F 2>/dev/null || echo "2027-01-01")
-        
-        log_info "Creating service token: $TOKEN_NAME (expires: $EXPIRY_DATE)..."
-        TOKEN_OUTPUT=$(osmo token set "$TOKEN_NAME" \
-            --expires-at "$EXPIRY_DATE" \
-            --description "Backend Operator Token (auto-generated)" \
-            --service --roles osmo-backend 2>&1)
-        
-        # Extract token from output (format: "Access token: <token>")
-        OSMO_SERVICE_TOKEN=$(echo "$TOKEN_OUTPUT" | sed -n 's/.*Access token: //p' | tr -d '\r' | xargs)
+
+        # Cleanup function to kill port-forwards on exit
+        PF_PIDS=()
+        cleanup_port_forwards() {
+            for pid in "${PF_PIDS[@]}"; do
+                kill "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+            done
+        }
+        trap cleanup_port_forwards EXIT
+
+        # Detect if Keycloak auth is enabled
+        KEYCLOAK_ENABLED="false"
+        if [[ "${DEPLOY_KEYCLOAK:-false}" == "true" ]]; then
+            KEYCLOAK_ENABLED="true"
+        elif kubectl get svc -n "${OSMO_NAMESPACE:-osmo}" keycloak &>/dev/null; then
+            KEYCLOAK_ENABLED="true"
+        fi
+
+        if [[ "$KEYCLOAK_ENABLED" == "true" ]]; then
+            # ---------------------------------------------------------------
+            # Keycloak-enabled: use Resource Owner Password Grant to get JWT,
+            # then call OSMO REST API with Bearer token
+            # ---------------------------------------------------------------
+            log_info "Keycloak detected - using password grant for token creation..."
+
+            # Derive Keycloak external URL from the ingress (ensures JWT issuer matches
+            # what Envoy expects -- using port-forward would produce a wrong issuer)
+            KC_INGRESS_HOST=$(kubectl get ingress -n "${OSMO_NAMESPACE:-osmo}" keycloak -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || echo "")
+            if [[ -z "$KC_INGRESS_HOST" ]]; then
+                log_error "Could not detect Keycloak ingress hostname"
+                exit 1
+            fi
+            KEYCLOAK_TOKEN_URL="https://${KC_INGRESS_HOST}/realms/osmo/protocol/openid-connect/token"
+            log_info "Keycloak token endpoint: ${KEYCLOAK_TOKEN_URL}"
+
+            # Port-forward to OSMO service (for the token creation API)
+            log_info "Starting port-forward to OSMO service..."
+            kubectl port-forward -n "${OSMO_NAMESPACE:-osmo}" svc/osmo-service 8080:80 &>/dev/null &
+            PF_PIDS+=($!)
+
+            # Wait for port-forward to be ready
+            log_info "Waiting for port-forward to be ready..."
+            max_wait=30
+            elapsed=0
+            while true; do
+                SVC_READY=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/api/version" 2>/dev/null || echo "000")
+                if [[ "$SVC_READY" =~ ^(200|401|403)$ ]]; then
+                    break
+                fi
+                sleep 1
+                elapsed=$((elapsed + 1))
+                if [[ $elapsed -ge $max_wait ]]; then
+                    log_error "Port-forward failed to start within ${max_wait}s (service=$SVC_READY)"
+                    exit 1
+                fi
+            done
+            log_success "Port-forward ready"
+
+            # Get Keycloak JWT via Resource Owner Password Grant
+            # Uses osmo-device client (public, directAccessGrantsEnabled=true)
+            # MUST use external Keycloak URL so the JWT issuer matches what Envoy expects
+            KC_ADMIN_USER="${OSMO_KC_ADMIN_USER:-osmo-admin}"
+            KC_ADMIN_PASS="${OSMO_KC_ADMIN_PASS:-osmo-admin}"
+
+            log_info "Authenticating with Keycloak as '${KC_ADMIN_USER}'..."
+            KC_RESPONSE=$(curl -s -X POST "${KEYCLOAK_TOKEN_URL}" \
+                -d "grant_type=password" \
+                -d "client_id=osmo-device" \
+                -d "username=${KC_ADMIN_USER}" \
+                -d "password=${KC_ADMIN_PASS}")
+
+            KC_JWT=$(echo "$KC_RESPONSE" | jq -r '.access_token // empty' 2>/dev/null || echo "")
+            if [[ -z "$KC_JWT" ]]; then
+                KC_ERROR=$(echo "$KC_RESPONSE" | jq -r '.error_description // .error // empty' 2>/dev/null || echo "unknown error")
+                log_error "Keycloak authentication failed: $KC_ERROR"
+                log_error "Ensure OSMO_KC_ADMIN_USER and OSMO_KC_ADMIN_PASS are set, or that osmo-admin/osmo-admin is valid"
+                exit 1
+            fi
+            log_success "Keycloak authentication successful"
+
+            # Create service token via OSMO REST API
+            # NOTE: Must use "x-osmo-auth" header (not Authorization), because:
+            #   1. Envoy's OAuth2 filter runs first and would redirect to Keycloak
+            #      if it doesn't see OAuth cookies. The "x-osmo-auth" header triggers
+            #      the pass_through_matcher, bypassing the OAuth2 redirect.
+            #   2. Envoy's JWT filter reads from "x-osmo-auth" (not Authorization).
+            #   3. No "Bearer " prefix -- the JWT filter has no value_prefix configured,
+            #      so it expects the raw JWT directly.
+            log_info "Creating service token: $TOKEN_NAME (expires: $EXPIRY_DATE)..."
+            TOKEN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                "http://localhost:8080/api/auth/access_token/service/${TOKEN_NAME}?expires_at=${EXPIRY_DATE}&roles=osmo-backend" \
+                -H "x-osmo-auth: ${KC_JWT}" \
+                -H "Content-Type: application/json")
+
+            # Separate response body from HTTP status code
+            HTTP_CODE=$(echo "$TOKEN_RESPONSE" | tail -1)
+            TOKEN_BODY=$(echo "$TOKEN_RESPONSE" | sed '$d')
+
+            if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "201" ]]; then
+                log_error "Token creation API returned HTTP $HTTP_CODE"
+                log_error "Response: $TOKEN_BODY"
+                exit 1
+            fi
+
+            # Response is the raw token string (quoted JSON string)
+            OSMO_SERVICE_TOKEN=$(echo "$TOKEN_BODY" | jq -r '. // empty' 2>/dev/null || echo "")
+            # If jq fails (response might be a plain string, not JSON), use raw
+            if [[ -z "$OSMO_SERVICE_TOKEN" ]]; then
+                OSMO_SERVICE_TOKEN=$(echo "$TOKEN_BODY" | tr -d '"' | tr -d '\r' | xargs)
+            fi
+
+        else
+            # ---------------------------------------------------------------
+            # No Keycloak: use dev auth method (original approach)
+            # ---------------------------------------------------------------
+            # Check if osmo CLI is available
+            if ! command -v osmo &>/dev/null; then
+                log_error "osmo CLI not found. Please install it first."
+                exit 1
+            fi
+
+            # Start port-forward in background
+            log_info "Starting port-forward to OSMO service..."
+            kubectl port-forward -n "${OSMO_NAMESPACE:-osmo}" svc/osmo-service 8080:80 &>/dev/null &
+            PF_PIDS+=($!)
+
+            # Wait for port-forward to be ready
+            log_info "Waiting for port-forward to be ready..."
+            max_wait=30
+            elapsed=0
+            while ! curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/api/version" 2>/dev/null | grep -q "200\|401\|403"; do
+                sleep 1
+                elapsed=$((elapsed + 1))
+                if [[ $elapsed -ge $max_wait ]]; then
+                    log_error "Port-forward failed to start within ${max_wait}s"
+                    exit 1
+                fi
+            done
+            log_success "Port-forward ready"
+
+            # Login with dev method (auth is disabled)
+            log_info "Logging in to OSMO (dev method)..."
+            if ! osmo login http://localhost:8080 --method dev --username admin 2>/dev/null; then
+                log_error "Failed to login to OSMO. If Keycloak is enabled, set DEPLOY_KEYCLOAK=true"
+                exit 1
+            fi
+            log_success "Logged in successfully"
+
+            # Create service token
+            log_info "Creating service token: $TOKEN_NAME (expires: $EXPIRY_DATE)..."
+            TOKEN_OUTPUT=$(osmo token set "$TOKEN_NAME" \
+                --expires-at "$EXPIRY_DATE" \
+                --description "Backend Operator Token (auto-generated)" \
+                --service --roles osmo-backend 2>&1)
+
+            # Extract token from output (format: "Access token: <token>")
+            OSMO_SERVICE_TOKEN=$(echo "$TOKEN_OUTPUT" | sed -n 's/.*Access token: //p' | tr -d '\r' | xargs)
+        fi
 
         if [[ -z "$OSMO_SERVICE_TOKEN" ]]; then
             log_error "Failed to create service token"
-            echo "Output: $TOKEN_OUTPUT"
+            echo "Response: ${TOKEN_RESPONSE:-$TOKEN_OUTPUT}"
             exit 1
         fi
-        
-        log_success "Service token created successfully"
-        
-        # Stop port-forward (we're done with it)
-        cleanup_port_forward
+
+        log_success "Service token created: $TOKEN_NAME (expires: $EXPIRY_DATE)"
+
+        # Stop port-forwards
+        cleanup_port_forwards
         trap - EXIT
     fi
 fi

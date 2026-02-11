@@ -331,13 +331,7 @@ log_success "Databases verified and ready"
 # -----------------------------------------------------------------------------
 log_info "Creating secrets..."
 
-# Database secret for Keycloak (only if Keycloak is being deployed)
-if [[ "${DEPLOY_KEYCLOAK:-false}" == "true" ]]; then
-    kubectl create secret generic keycloak-db-secret \
-        --namespace "${KEYCLOAK_NAMESPACE}" \
-        --from-literal=postgres-password="${POSTGRES_PASSWORD}" \
-        --dry-run=client -o yaml | kubectl apply -f -
-fi
+# keycloak-db-secret is created later in Step 4 when DEPLOY_KEYCLOAK=true (with other Keycloak secrets)
 
 # Create the postgres-secret that OSMO chart expects
 # The chart looks for passwordSecretName: postgres-secret, passwordSecretKey: password
@@ -478,58 +472,10 @@ if [[ "${DEPLOY_KEYCLOAK:-false}" == "true" ]]; then
     log_info "Deploying Keycloak for OSMO authentication..."
     log_info "Reference: https://nvidia.github.io/OSMO/main/deployment_guide/getting_started/deploy_service.html#step-2-configure-keycloak"
 
-    # -------------------------------------------------------------------------
-    # Step 1: Create Keycloak database in PostgreSQL
-    # Per OSMO docs: https://nvidia.github.io/OSMO/main/deployment_guide/getting_started/deploy_service.html#step-1-configure-postgresql
-    # -------------------------------------------------------------------------
-    log_info "Creating Keycloak database in PostgreSQL..."
-    
-    # Delete old pod if exists
-    kubectl delete pod osmo-db-ops -n "${OSMO_NAMESPACE}" --ignore-not-found 2>/dev/null
-    
-    # Use the managed PostgreSQL credentials (bootstrap user has CREATEDB privilege)
-    cat > /tmp/keycloak-db-init.yaml <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: osmo-db-ops
-  namespace: ${OSMO_NAMESPACE}
-spec:
-  containers:
-    - name: osmo-db-ops
-      image: postgres:15-alpine
-      env:
-        - name: PGPASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: osmo-db-init-creds
-              key: PGPASSWORD
-      command: ["/bin/sh", "-c"]
-      args:
-        - |
-          # Connect to the bootstrap database (osmo) and create keycloak database
-          # Nebius MSP bootstrap user can only connect to the bootstrap database
-          psql -U ${POSTGRES_USER} -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -d ${POSTGRES_DB} -tc "SELECT 1 FROM pg_database WHERE datname = 'keycloak'" | grep -q 1 || \
-          psql -U ${POSTGRES_USER} -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -d ${POSTGRES_DB} -c 'CREATE DATABASE keycloak;' || \
-          echo "WARNING: Could not create keycloak database. Bootstrap user may not have CREATEDB privilege."
-          echo "Keycloak database setup complete"
-  restartPolicy: Never
-EOF
-    kubectl apply -f /tmp/keycloak-db-init.yaml
-    
-    log_info "Waiting for Keycloak database to be created..."
-    kubectl wait --for=condition=Ready pod/osmo-db-ops -n "${OSMO_NAMESPACE}" --timeout=60s 2>/dev/null || true
-    sleep 5
-    kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/osmo-db-ops -n "${OSMO_NAMESPACE}" --timeout=60s || {
-        log_warning "Database creation pod status:"
-        kubectl logs -n "${OSMO_NAMESPACE}" osmo-db-ops || true
-    }
-    kubectl delete pod osmo-db-ops -n "${OSMO_NAMESPACE}" --ignore-not-found 2>/dev/null
-    rm -f /tmp/keycloak-db-init.yaml
-    log_success "Keycloak database ready"
+    # Keycloak database was already created in Step 2 (osmo-db-init pod) when DEPLOY_KEYCLOAK=true
 
     # -------------------------------------------------------------------------
-    # Step 2: Create secrets for Keycloak
+    # Step 1: Create secrets for Keycloak
     # -------------------------------------------------------------------------
     log_info "Creating Keycloak secrets..."
     
@@ -549,7 +495,7 @@ EOF
     log_success "Keycloak secrets created"
 
     # -------------------------------------------------------------------------
-    # Step 3: Install Keycloak using Bitnami Helm chart
+    # Step 2: Install Keycloak using Bitnami Helm chart
     # Per OSMO docs: https://nvidia.github.io/OSMO/main/deployment_guide/getting_started/deploy_service.html#install-keycloak-using-bitnami-helm-chart
     # -------------------------------------------------------------------------
     log_info "Installing Keycloak using Bitnami Helm chart..."
@@ -1508,6 +1454,14 @@ else
     ROUTER_HELM_ARGS+=(--set sidecars.envoy.enabled=false)
 fi
 
+# Proxy buffer annotations for Router ingress (required for OAuth2 -- JWT cookies make headers large)
+if [[ "$AUTH_ENABLED" == "true" ]]; then
+    ROUTER_HELM_ARGS+=(
+        --set-string "services.service.ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffer-size=16k"
+        --set-string "services.service.ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffers-number=4"
+    )
+fi
+
 # TLS settings for Router ingress
 if [[ "$TLS_ENABLED" == "true" && -n "$INGRESS_HOSTNAME" ]]; then
     ROUTER_HELM_ARGS+=(
@@ -1572,7 +1526,7 @@ if [[ "${DEPLOY_UI:-true}" == "true" ]]; then
             --set "sidecars.envoy.jwt.providers[0].issuer=${KEYCLOAK_EXTERNAL_URL}/realms/osmo"
             --set sidecars.envoy.jwt.providers[0].audience=osmo-device
             --set "sidecars.envoy.jwt.providers[0].jwks_uri=${KEYCLOAK_EXTERNAL_URL}/realms/osmo/protocol/openid-connect/certs"
-            --set sidecars.envoy.jwt.providers[0].user_claim=unique_name
+            --set sidecars.envoy.jwt.providers[0].user_claim=preferred_username
             --set sidecars.envoy.jwt.providers[0].cluster=oauth
             # JWT Provider 2: Keycloak browser flow (Web UI)
             --set "sidecars.envoy.jwt.providers[1].issuer=${KEYCLOAK_EXTERNAL_URL}/realms/osmo"
@@ -1583,6 +1537,14 @@ if [[ "${DEPLOY_UI:-true}" == "true" ]]; then
         )
     else
         UI_HELM_ARGS+=(--set sidecars.envoy.enabled=false)
+    fi
+
+    # Proxy buffer annotations for Web UI ingress (required for OAuth2 -- JWT cookies make headers large)
+    if [[ "$AUTH_ENABLED" == "true" ]]; then
+        UI_HELM_ARGS+=(
+            --set-string "services.ui.ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffer-size=16k"
+            --set-string "services.ui.ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffers-number=4"
+        )
     fi
 
     # TLS settings for Web UI ingress
