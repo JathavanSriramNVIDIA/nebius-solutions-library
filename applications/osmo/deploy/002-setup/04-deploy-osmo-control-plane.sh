@@ -853,10 +853,43 @@ log_info "Creating OSMO values file..."
 # When OSMO_INGRESS_HOSTNAME is empty (default), ingress matches any Host header,
 # allowing direct IP-based access. Set it to a real domain for host-based routing.
 INGRESS_HOSTNAME="${OSMO_INGRESS_HOSTNAME:-}"
+TLS_ENABLED="${OSMO_TLS_ENABLED:-false}"
+TLS_SECRET_NAME="${OSMO_TLS_SECRET_NAME:-osmo-tls}"
+TLS_MODE="${OSMO_TLS_MODE:-}"
+
 if [[ -n "$INGRESS_HOSTNAME" ]]; then
     log_info "Ingress hostname: ${INGRESS_HOSTNAME}"
 else
     log_info "Ingress hostname: (any — IP-based access)"
+fi
+
+# TLS validation
+if [[ "$TLS_ENABLED" == "true" ]]; then
+    log_info "TLS is ENABLED"
+    if [[ -z "$INGRESS_HOSTNAME" ]]; then
+        log_error "TLS is enabled but OSMO_INGRESS_HOSTNAME is not set."
+        echo "  TLS certificates are issued for a domain name, not a bare IP."
+        echo "  Set your domain: export OSMO_INGRESS_HOSTNAME=osmo.example.com"
+        exit 1
+    fi
+    # Check that the TLS secret exists (created by 03a or 03c)
+    OSMO_NS_CHECK="${OSMO_NAMESPACE:-osmo}"
+    INGRESS_NS_CHECK="${INGRESS_NAMESPACE:-ingress-nginx}"
+    TLS_SECRET_FOUND="false"
+    if kubectl get secret "${TLS_SECRET_NAME}" -n "${OSMO_NS_CHECK}" &>/dev/null || \
+       kubectl get secret "${TLS_SECRET_NAME}" -n "${INGRESS_NS_CHECK}" &>/dev/null; then
+        TLS_SECRET_FOUND="true"
+    fi
+    if [[ "$TLS_SECRET_FOUND" != "true" ]]; then
+        log_error "TLS secret '${TLS_SECRET_NAME}' not found."
+        echo "  Run one of these scripts first to obtain a certificate:"
+        echo "    ./03a-setup-tls-certificate.sh   (manual certbot with DNS-01)"
+        echo "    ./03c-deploy-cert-manager.sh     (automated cert-manager with HTTP-01)"
+        exit 1
+    fi
+    log_success "TLS secret '${TLS_SECRET_NAME}' found"
+else
+    log_info "TLS is disabled (HTTP only). Set OSMO_TLS_ENABLED=true to enable."
 fi
 
 # Create the values file with proper extraEnv and extraVolumes for each service
@@ -896,12 +929,26 @@ services:
       enabled: true
       prefix: /
       ingressClass: nginx
-      sslEnabled: false
+      sslEnabled: ${TLS_ENABLED}
       annotations:
         nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
         nginx.ingress.kubernetes.io/proxy-buffers: "8 16k"
         nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "32k"
         nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"
+$(if [[ "$TLS_ENABLED" == "true" ]]; then
+cat <<TLS_ANNOTATIONS
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+$(if [[ "$TLS_MODE" == "cert-manager" ]]; then echo "        cert-manager.io/cluster-issuer: \"${CLUSTER_ISSUER_NAME:-letsencrypt-prod}\""; fi)
+TLS_ANNOTATIONS
+fi)
+$(if [[ "$TLS_ENABLED" == "true" && -n "$INGRESS_HOSTNAME" ]]; then
+cat <<TLS_BLOCK
+      tls:
+        - hosts:
+            - ${INGRESS_HOSTNAME}
+          secretName: ${TLS_SECRET_NAME}
+TLS_BLOCK
+fi)
     # Authentication configuration
     # NOTE: Auth is DISABLED because OSMO's internal JWT validation expects
     # tokens signed with its own keys, not Keycloak's keys.
@@ -1126,13 +1173,27 @@ ROUTER_HELM_ARGS=(
     --set "services.postgres.user=${POSTGRES_USER}"
     --set services.service.ingress.enabled=true
     --set services.service.ingress.ingressClass=nginx
-    --set services.service.ingress.sslEnabled=false
+    --set "services.service.ingress.sslEnabled=${TLS_ENABLED}"
     --set services.service.scaling.minReplicas=1
     --set services.service.scaling.maxReplicas=1
     --set sidecars.envoy.enabled=false
     --set sidecars.logAgent.enabled=false
 )
 [[ -n "$INGRESS_HOSTNAME" ]] && ROUTER_HELM_ARGS+=(--set "services.service.hostname=${INGRESS_HOSTNAME}" --set "global.domain=${INGRESS_HOSTNAME}")
+
+# TLS settings for Router ingress
+if [[ "$TLS_ENABLED" == "true" && -n "$INGRESS_HOSTNAME" ]]; then
+    ROUTER_HELM_ARGS+=(
+        --set-string "services.service.ingress.annotations.nginx\.ingress\.kubernetes\.io/ssl-redirect=true"
+        --set "services.service.ingress.tls[0].hosts[0]=${INGRESS_HOSTNAME}"
+        --set "services.service.ingress.tls[0].secretName=${TLS_SECRET_NAME}"
+    )
+    if [[ "$TLS_MODE" == "cert-manager" ]]; then
+        ROUTER_HELM_ARGS+=(
+            --set-string "services.service.ingress.annotations.cert-manager\.io/cluster-issuer=${CLUSTER_ISSUER_NAME:-letsencrypt-prod}"
+        )
+    fi
+fi
 
 helm upgrade --install osmo-router osmo/router \
     "${ROUTER_HELM_ARGS[@]}" \
@@ -1151,13 +1212,27 @@ if [[ "${DEPLOY_UI:-true}" == "true" ]]; then
         --set services.ui.service.type=ClusterIP
         --set services.ui.ingress.enabled=true
         --set services.ui.ingress.ingressClass=nginx
-        --set services.ui.ingress.sslEnabled=false
+        --set "services.ui.ingress.sslEnabled=${TLS_ENABLED}"
         --set services.ui.replicas=1
         --set "services.ui.apiHostname=osmo-service.${OSMO_NAMESPACE}.svc.cluster.local:80"
         --set sidecars.envoy.enabled=false
         --set sidecars.logAgent.enabled=false
     )
     [[ -n "$INGRESS_HOSTNAME" ]] && UI_HELM_ARGS+=(--set "services.ui.hostname=${INGRESS_HOSTNAME}" --set "global.domain=${INGRESS_HOSTNAME}")
+
+    # TLS settings for Web UI ingress
+    if [[ "$TLS_ENABLED" == "true" && -n "$INGRESS_HOSTNAME" ]]; then
+        UI_HELM_ARGS+=(
+            --set-string "services.ui.ingress.annotations.nginx\.ingress\.kubernetes\.io/ssl-redirect=true"
+            --set "services.ui.ingress.tls[0].hosts[0]=${INGRESS_HOSTNAME}"
+            --set "services.ui.ingress.tls[0].secretName=${TLS_SECRET_NAME}"
+        )
+        if [[ "$TLS_MODE" == "cert-manager" ]]; then
+            UI_HELM_ARGS+=(
+                --set-string "services.ui.ingress.annotations.cert-manager\.io/cluster-issuer=${CLUSTER_ISSUER_NAME:-letsencrypt-prod}"
+            )
+        fi
+    fi
 
     helm upgrade --install osmo-ui osmo/web-ui \
         "${UI_HELM_ARGS[@]}" \

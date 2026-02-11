@@ -43,9 +43,23 @@ log_info "Creating namespace ${INGRESS_NAMESPACE}..."
 kubectl create namespace "${INGRESS_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
 log_info "Installing NGINX Ingress Controller..."
+
+NGINX_HELM_ARGS=(
+    --namespace "${INGRESS_NAMESPACE}"
+    --set controller.service.type=LoadBalancer
+)
+
+# When TLS is enabled, configure NGINX to redirect HTTP to HTTPS
+if [[ "${OSMO_TLS_ENABLED:-false}" == "true" ]]; then
+    log_info "TLS enabled: configuring HTTP-to-HTTPS redirect"
+    NGINX_HELM_ARGS+=(
+        --set-string controller.config.force-ssl-redirect="true"
+        --set-string controller.config.use-forwarded-headers="true"
+    )
+fi
+
 helm upgrade --install "${INGRESS_RELEASE_NAME}" ingress-nginx/ingress-nginx \
-    --namespace "${INGRESS_NAMESPACE}" \
-    --set controller.service.type=LoadBalancer \
+    "${NGINX_HELM_ARGS[@]}" \
     --wait --timeout 5m || {
     log_warning "Helm install returned non-zero; controller may still be starting."
 }
@@ -61,8 +75,16 @@ for i in $(seq 1 24); do
     if [[ -n "$LB_IP" ]]; then
         log_success "LoadBalancer IP: ${LB_IP}"
         echo ""
-        echo "OSMO will be accessible at:"
-        echo "  http://${LB_IP}"
+        if [[ "${OSMO_TLS_ENABLED:-false}" == "true" && -n "${OSMO_INGRESS_HOSTNAME:-}" ]]; then
+            echo "OSMO will be accessible at:"
+            echo "  https://${OSMO_INGRESS_HOSTNAME}"
+            echo ""
+            echo "Ensure your DNS A record points to this IP:"
+            echo "  ${OSMO_INGRESS_HOSTNAME} -> ${LB_IP}"
+        else
+            echo "OSMO will be accessible at:"
+            echo "  http://${LB_IP}"
+        fi
         echo ""
         echo "This URL is auto-detected by 04-deploy-osmo-control-plane.sh."
         echo ""

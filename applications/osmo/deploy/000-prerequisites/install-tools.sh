@@ -151,6 +151,15 @@ check_osmo() {
     return 1
 }
 
+check_cmctl() {
+    if check_command cmctl; then
+        local version=$(cmctl version --short 2>/dev/null | head -1 || echo "unknown")
+        print_status "cmctl (cert-manager CLI) installed ($version)"
+        return 0
+    fi
+    return 1
+}
+
 install_terraform() {
     echo "Installing Terraform..."
     case $OS in
@@ -215,6 +224,23 @@ install_osmo() {
         export PATH="$HOME/.local/bin:$PATH"
     fi
     print_status "OSMO CLI installed"
+}
+
+install_cmctl() {
+    echo "Installing cmctl (cert-manager CLI)..."
+    # See: https://cert-manager.io/docs/reference/cmctl/#installation
+    case $OS in
+        linux|wsl)
+            local cmctl_os="linux"
+            local cmctl_arch="amd64"
+            curl -fsSL -o cmctl "https://github.com/cert-manager/cmctl/releases/latest/download/cmctl_${cmctl_os}_${cmctl_arch}"
+            chmod +x cmctl
+            sudo mv cmctl /usr/local/bin/
+            ;;
+        macos)
+            brew install cmctl
+            ;;
+    esac
 }
 
 # Main logic
@@ -287,6 +313,17 @@ main() {
         else
             install_osmo
             check_osmo || print_error "Failed to install OSMO CLI"
+        fi
+    fi
+    
+    # Check/Install cmctl (cert-manager CLI, for TLS certificate management)
+    if ! check_cmctl; then
+        all_installed=false
+        if $check_only; then
+            print_error "cmctl (cert-manager CLI) not installed"
+        else
+            install_cmctl
+            check_cmctl || print_error "Failed to install cmctl"
         fi
     fi
     

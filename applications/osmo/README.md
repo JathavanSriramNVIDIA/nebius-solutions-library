@@ -20,7 +20,7 @@ Deploy [NVIDIA OSMO](https://nvidia.github.io/OSMO/main/user_guide/index.html) o
 | No managed Redis service | Deploy Redis in-cluster via Helm | Workaround in place |
 | MysteryBox lacks K8s CSI integration | Scripts retrieve secrets and create K8s secrets manually | Workaround in place |
 | No External DNS service | Manual DNS configuration required | Not addressed |
-| No managed SSL/TLS service | Manual certificate management | Not addressed |
+| No managed SSL/TLS service | certbot manual DNS-01 or cert-manager HTTP-01 | Addressed (see [SSL/TLS Setup](#option-c-ssltls-with-lets-encrypt)) |
 | No public Load Balancer (ALB/NLB) | Use port-forwarding or WireGuard VPN for access | Workaround in place |
 | IDP integration for Nebius | Using OSMO dev auth mode; Keycloak available but not integrated | TBD |
 | Nebius Observability Stack integration | Using self-deployed Prometheus/Grafana/Loki | TODO |
@@ -127,7 +127,7 @@ Please run this from a Linux Shell/Ubuntu/WSL.
 
 ```bash
 cd deploy/000-prerequisites
-./install-tools.sh        # Installs: Terraform, kubectl, Helm, Nebius CLI, OSMO CLI
+./install-tools.sh        # Installs: Terraform, kubectl, Helm, Nebius CLI, OSMO CLI, cmctl
 ./install-tools.sh --check  # Verify without installing
 ```
 
@@ -214,7 +214,40 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    
    This deploys the community NGINX Ingress Controller with a LoadBalancer IP. It provides path-based routing to all OSMO services (API, router, Web UI). The LoadBalancer IP is auto-detected by later scripts.
 
-5. Deploy OSMO control plane:
+5. **(Optional) Enable TLS/SSL:**
+
+   If you want HTTPS, you need a **domain name** with a **DNS A record** pointing to the NGINX Ingress LoadBalancer public IP.
+   
+   First, get the LoadBalancer IP assigned in the previous step:
+   ```bash
+   kubectl get svc -n ingress-nginx ingress-nginx-controller \
+     -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+   ```
+   
+   Then, at your DNS provider, create an **A record**:
+   ```
+   osmo.example.com  →  <LoadBalancer IP>
+   ```
+   
+   > **Note:** Let's Encrypt (used by both options below) cannot issue certificates for bare IP addresses — a domain name is required. DNS propagation may take a few minutes; verify with `nslookup osmo.example.com` before proceeding.
+   
+   Once the A record is in place, run **one** of these before deploying OSMO:
+
+   ```bash
+   # Set required variables
+   export OSMO_INGRESS_HOSTNAME=osmo.example.com
+   export LETSENCRYPT_EMAIL=you@example.com
+   
+   # Option A: Manual certbot (DNS-01 challenge — you add a TXT record to prove ownership)
+   ./03a-setup-tls-certificate.sh
+   
+   # Option B: Automated cert-manager (HTTP-01 — verifies via the A record you just created)
+   ./03c-deploy-cert-manager.sh
+   ```
+   
+   Then set `export OSMO_TLS_ENABLED=true` before running subsequent scripts. See [SSL/TLS Setup](#option-c-ssltls-with-lets-encrypt) for details.
+
+6. Deploy OSMO control plane:
    ```bash
    ./04-deploy-osmo-control-plane.sh
    ```
@@ -280,24 +313,31 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
    ```
    
-   Access points (replace `<LB_IP>` with your LoadBalancer IP):
+   **With TLS enabled** (if you ran step 5 with a domain, e.g. `osmo.example.com`):
+   - **OSMO API**: `https://osmo.example.com/api/version`
+   - **OSMO Web UI**: `https://osmo.example.com`
+   
+   ```bash
+   osmo login https://osmo.example.com --method dev --username admin
+   ```
+   
+   **Without TLS** (plain HTTP via LoadBalancer IP):
    - **OSMO API**: `http://<LB_IP>/api/version`
    - **OSMO Web UI**: `http://<LB_IP>`
    
-   Login to OSMO CLI:
    ```bash
    osmo login http://<LB_IP> --method dev --username admin
    ```
    
-   > **Fallback:** If the LoadBalancer IP is not reachable, you can use port-forwarding:
+   > **Fallback:** If neither the domain nor the LoadBalancer IP is reachable, you can use port-forwarding:
    > ```bash
    > kubectl port-forward -n osmo svc/osmo-service 8080:80
    > osmo login http://localhost:8080 --method dev --username admin
    > ```
 
    > **Note:** The `service_base_url` (required for workflow execution) is automatically configured
-   > by `04-deploy-osmo-control-plane.sh` using the NGINX Ingress LoadBalancer IP. If you need to
-   > reconfigure it manually, run `./07-configure-service-url.sh`.
+   > by `04-deploy-osmo-control-plane.sh` using the domain (if TLS is enabled) or the LoadBalancer IP.
+   > If you need to reconfigure it manually, run `./07-configure-service-url.sh`.
 
 11. Configure pool for GPU workloads:
    
@@ -427,6 +467,82 @@ For development/testing with public access:
 enable_wireguard        = false
 enable_public_endpoint  = true
 ```
+
+### Option C: SSL/TLS with Let's Encrypt
+
+Enable HTTPS for OSMO using free Let's Encrypt certificates. Two paths are available:
+
+#### Prerequisites
+
+- A **domain name** (e.g. `osmo.example.com`) that you control
+- NGINX Ingress Controller deployed (`03-deploy-nginx-ingress.sh`)
+- `certbot` installed (Path A only) or `helm` available (Path B only)
+
+#### Path A: Manual Certbot (DNS-01 Challenge)
+
+Best for: users who want full manual control, or whose DNS provider has no API.
+
+1. Set environment variables:
+   ```bash
+   export OSMO_INGRESS_HOSTNAME=osmo.example.com
+   export LETSENCRYPT_EMAIL=you@example.com
+   ```
+
+2. Run the certificate setup script:
+   ```bash
+   ./03a-setup-tls-certificate.sh
+   ```
+
+3. When prompted by certbot, add the displayed DNS TXT record at your DNS provider:
+   - Record name: `_acme-challenge.osmo.example.com`
+   - Record value: (provided by certbot)
+   - Wait 1-5 minutes for DNS propagation, then press Enter
+
+4. Enable TLS for subsequent scripts:
+   ```bash
+   export OSMO_TLS_ENABLED=true
+   ```
+
+5. **Renewal:** Certificates expire after 90 days. Run before expiry:
+   ```bash
+   ./03b-renew-tls-certificate.sh
+   ```
+
+#### Path B: Automated cert-manager (HTTP-01 Challenge)
+
+Best for: users who want hands-off auto-renewal. Certificates are automatically renewed.
+
+1. Point your domain's A record to the NGINX Ingress LoadBalancer IP:
+   ```bash
+   # Get the LoadBalancer IP
+   kubectl get svc -n ingress-nginx ingress-nginx-controller \
+     -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+   ```
+
+2. Set environment variables:
+   ```bash
+   export OSMO_INGRESS_HOSTNAME=osmo.example.com
+   export LETSENCRYPT_EMAIL=you@example.com
+   ```
+
+3. Deploy cert-manager:
+   ```bash
+   ./03c-deploy-cert-manager.sh
+   ```
+
+4. Enable TLS for subsequent scripts:
+   ```bash
+   export OSMO_TLS_ENABLED=true
+   ```
+
+   cert-manager automatically renews certificates 30 days before expiry.
+
+#### After TLS Setup
+
+With TLS enabled, OSMO is accessible at:
+- **OSMO API**: `https://osmo.example.com/api/version`
+- **OSMO Web UI**: `https://osmo.example.com`
+- **OSMO CLI**: `osmo login https://osmo.example.com --method dev --username admin`
 
 ## Cost Optimization Tips
 

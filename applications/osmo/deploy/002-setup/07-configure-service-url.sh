@@ -74,7 +74,11 @@ elif DETECTED_URL=$(detect_service_url 2>/dev/null) && [[ -n "$DETECTED_URL" ]];
 else
     log_error "Could not detect NGINX Ingress Controller URL."
     log_error "Ensure 03-deploy-nginx-ingress.sh was run and the LoadBalancer has an IP."
-    log_error "Or set OSMO_INGRESS_BASE_URL manually: export OSMO_INGRESS_BASE_URL=http://<lb-ip>"
+    if [[ "${OSMO_TLS_ENABLED:-false}" == "true" ]]; then
+        log_error "Or set OSMO_INGRESS_BASE_URL manually: export OSMO_INGRESS_BASE_URL=https://<your-domain>"
+    else
+        log_error "Or set OSMO_INGRESS_BASE_URL manually: export OSMO_INGRESS_BASE_URL=http://<lb-ip>"
+    fi
     exit 1
 fi
 

@@ -199,7 +199,11 @@ wait_for_pods() {
 
 # Detect OSMO service URL from the NGINX Ingress Controller's LoadBalancer.
 #
+# When OSMO_TLS_ENABLED=true and OSMO_INGRESS_HOSTNAME is set, returns
+# https://<hostname>. Otherwise falls back to http://<ip>.
+#
 # Lookup order:
+#   0. If TLS enabled + hostname set, return https://<hostname> immediately
 #   1. LoadBalancer external IP   (cloud assigns a public/internal IP)
 #   2. LoadBalancer hostname       (some clouds return a DNS name instead)
 #   3. Controller ClusterIP        (fallback – works from inside the cluster)
@@ -209,7 +213,18 @@ wait_for_pods() {
 #   [[ -n "$url" ]] && echo "OSMO reachable at $url"
 detect_service_url() {
     local ns="${INGRESS_NAMESPACE:-ingress-nginx}"
-    local url=""
+    local tls_enabled="${OSMO_TLS_ENABLED:-false}"
+    local hostname="${OSMO_INGRESS_HOSTNAME:-}"
+    local scheme="http"
+
+    if [[ "$tls_enabled" == "true" ]]; then
+        scheme="https"
+        # If hostname is configured, prefer it (TLS certs are issued for the domain)
+        if [[ -n "$hostname" ]]; then
+            echo "${scheme}://${hostname}"
+            return 0
+        fi
+    fi
 
     # Find the controller service (works for the community ingress-nginx chart)
     local lb_ip lb_host cluster_ip svc_name
@@ -222,7 +237,7 @@ detect_service_url() {
         lb_ip=$(kubectl get svc "$svc_name" -n "$ns" \
             -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
         if [[ -n "$lb_ip" ]]; then
-            echo "http://${lb_ip}"
+            echo "${scheme}://${lb_ip}"
             return 0
         fi
 
@@ -230,7 +245,7 @@ detect_service_url() {
         lb_host=$(kubectl get svc "$svc_name" -n "$ns" \
             -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
         if [[ -n "$lb_host" ]]; then
-            echo "http://${lb_host}"
+            echo "${scheme}://${lb_host}"
             return 0
         fi
 
@@ -238,7 +253,7 @@ detect_service_url() {
         cluster_ip=$(kubectl get svc "$svc_name" -n "$ns" \
             -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
         if [[ -n "$cluster_ip" && "$cluster_ip" != "None" ]]; then
-            echo "http://${cluster_ip}"
+            echo "${scheme}://${cluster_ip}"
             return 0
         fi
     fi
