@@ -56,6 +56,16 @@ export CLUSTER_ISSUER_NAME="${CLUSTER_ISSUER_NAME:-letsencrypt-prod}"
 # TLS mode: "certbot" or "cert-manager". Set automatically by 03a/03c.
 export OSMO_TLS_MODE="${OSMO_TLS_MODE:-}"
 
+# Keycloak / Authentication
+# Set DEPLOY_KEYCLOAK=true to deploy Keycloak and enable OSMO auth with Envoy sidecars.
+export DEPLOY_KEYCLOAK="${DEPLOY_KEYCLOAK:-false}"
+# Keycloak hostname (e.g. auth-osmo-nebius.csptst.nvidia.com).
+# Auto-derived from OSMO_INGRESS_HOSTNAME if empty: auth-<OSMO_INGRESS_HOSTNAME>.
+export KEYCLOAK_HOSTNAME="${KEYCLOAK_HOSTNAME:-}"
+# TLS secret name for the Keycloak ingress (separate from the main osmo-tls).
+# Run 03a with OSMO_TLS_SECRET_NAME=osmo-tls-auth for the auth subdomain.
+export KEYCLOAK_TLS_SECRET_NAME="${KEYCLOAK_TLS_SECRET_NAME:-osmo-tls-auth}"
+
 # Paths
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export VALUES_DIR="${SCRIPT_DIR}/values"

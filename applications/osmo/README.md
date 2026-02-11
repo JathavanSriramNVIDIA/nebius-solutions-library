@@ -22,7 +22,7 @@ Deploy [NVIDIA OSMO](https://nvidia.github.io/OSMO/main/user_guide/index.html) o
 | No External DNS service | Manual DNS configuration required | Not addressed |
 | No managed SSL/TLS service | certbot manual DNS-01 or cert-manager HTTP-01 | Addressed (see [SSL/TLS Setup](#option-c-ssltls-with-lets-encrypt)) |
 | No public Load Balancer (ALB/NLB) | Use port-forwarding or WireGuard VPN for access | Workaround in place |
-| IDP integration for Nebius | Using OSMO dev auth mode; Keycloak available but not integrated | TBD |
+| IDP integration for Nebius | Keycloak with Envoy sidecar (OAuth2 + JWT) | Addressed (see [Keycloak Authentication](#option-d-keycloak-authentication)) |
 | Nebius Observability Stack integration | Using self-deployed Prometheus/Grafana/Loki | TODO |
 | Single cluster for Control Plane + Backend | Using 1 MK8s cluster for both; production separation TBD | Discuss with Nebius |
 
@@ -247,7 +247,30 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    
    Then set `export OSMO_TLS_ENABLED=true` before running subsequent scripts. See [SSL/TLS Setup](#option-c-ssltls-with-lets-encrypt) for details.
 
-6. Deploy OSMO control plane:
+6. **(Optional) Enable Keycloak Authentication:**
+
+   If you want production-grade authentication (OAuth2 + JWT via Envoy sidecars), you need TLS enabled (step 5) plus a separate TLS certificate for the Keycloak auth subdomain.
+
+   ```bash
+   # Prerequisites: TLS must be enabled (step 5), and you need a DNS A record for the auth subdomain
+   # e.g. auth-osmo.example.com -> <LoadBalancer IP>
+   
+   # Get TLS cert for auth subdomain
+   export OSMO_INGRESS_HOSTNAME=auth-osmo.example.com
+   export OSMO_TLS_SECRET_NAME=osmo-tls-auth
+   export LETSENCRYPT_EMAIL=you@example.com
+   ./03a-setup-tls-certificate.sh
+   
+   # Enable Keycloak (set before running 04-deploy-osmo-control-plane.sh)
+   export DEPLOY_KEYCLOAK=true
+   export OSMO_INGRESS_HOSTNAME=osmo.example.com   # Reset to main domain
+   export KEYCLOAK_HOSTNAME=auth-osmo.example.com
+   export OSMO_TLS_ENABLED=true
+   ```
+   
+   See [Keycloak Authentication](#option-d-keycloak-authentication) for details. Skip this step if you want an open API (no authentication).
+
+7. Deploy OSMO control plane:
    ```bash
    ./04-deploy-osmo-control-plane.sh
    ```
@@ -257,10 +280,11 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    - Initializes databases on Nebius Managed PostgreSQL
    - Deploys Redis and OSMO services (API, agent, worker, logger)
    - Creates Kubernetes Ingress resources for path-based routing via the NGINX Ingress Controller
+   - If `DEPLOY_KEYCLOAK=true` with TLS: deploys Keycloak, enables Envoy sidecars with OAuth2/JWT authentication
    
    > **Note:** The script automatically retrieves PostgreSQL password and MEK from MysteryBox if you ran `secrets-init.sh` earlier.
 
-7. Deploy OSMO backend operator:
+8. Deploy OSMO backend operator:
    ```bash
    ./05-deploy-osmo-backend.sh
    ```
@@ -279,7 +303,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    
    > **Manual alternative:** If you prefer to create the token manually, set `OSMO_SERVICE_TOKEN` environment variable before running the script.
 
-8. Verify backend deployment:
+9. Verify backend deployment:
    
    Verify the backend is registered with OSMO using the NGINX Ingress LoadBalancer IP:
    ```bash
@@ -293,7 +317,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    The Ingress LoadBalancer IP is shown in the output of `04-deploy-osmo-control-plane.sh`.
    You should see the backend configuration with status `ONLINE`.
 
-9. Configure OSMO storage:
+10. Configure OSMO storage:
    ```bash
    ./06-configure-storage.sh
    ```
@@ -306,7 +330,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    
    > **Note:** The `osmo-storage` secret (with S3 credentials) was created automatically by `04-deploy-osmo-control-plane.sh`.
 
-10. Access OSMO (via NGINX Ingress LoadBalancer):
+11. Access OSMO (via NGINX Ingress LoadBalancer):
    
    The NGINX Ingress Controller exposes OSMO via a LoadBalancer IP. The IP is shown in the output of `04-deploy-osmo-control-plane.sh`, or retrieve it with:
    ```bash
@@ -339,7 +363,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    > by `04-deploy-osmo-control-plane.sh` using the domain (if TLS is enabled) or the LoadBalancer IP.
    > If you need to reconfigure it manually, run `./07-configure-service-url.sh`.
 
-11. Configure pool for GPU workloads:
+12. Configure pool for GPU workloads:
    
    The default pool needs GPU platform configuration to run GPU workflows. This creates a pod template with the correct node selector and tolerations for GPU nodes:
    
@@ -358,7 +382,44 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    osmo config show POD_TEMPLATE gpu_tolerations
    ```
 
-12. Run a test workflow (optional):
+13. **Log in to OSMO** (required before CLI/browser use):
+
+   The login method depends on whether Keycloak authentication is enabled.
+
+   **Without Keycloak** (dev mode):
+   ```bash
+   osmo login https://osmo.example.com --method dev --username admin
+   ```
+
+   **With Keycloak** (recommended for all authenticated deployments):
+
+   *Interactive -- device authorization flow (opens browser):*
+   ```bash
+   osmo login https://osmo.example.com
+   ```
+   The CLI prints a URL and a code. Open the URL in a browser, log in to Keycloak
+   (test user: `osmo-admin` / `osmo-admin`), enter the code, and the CLI session is
+   authenticated with a Keycloak-signed JWT that includes your RBAC roles.
+
+   *Script / CI -- resource owner password flow (no browser):*
+   ```bash
+   osmo login https://osmo.example.com \
+     --method password \
+     --username osmo-admin \
+     --password osmo-admin
+   ```
+   > **Security note:** The password method sends credentials directly to Keycloak.
+   > Only use it for service accounts or automation; prefer the device flow for
+   > interactive sessions.
+
+   *Browser:*
+   Navigate to `https://osmo.example.com` -- Envoy redirects you to the Keycloak
+   login page automatically.
+
+   > **Reference:** See [Authentication Flow](https://nvidia.github.io/OSMO/main/deployment_guide/appendix/authentication/authentication_flow.html) for the full architecture
+   > (OAuth2 code flow, device flow, service-account tokens, JWT validation).
+
+14. Run a test workflow (optional):
    
    Verify the complete setup by running a test workflow from the `workflows/osmo/` directory:
    
@@ -542,7 +603,93 @@ Best for: users who want hands-off auto-renewal. Certificates are automatically 
 With TLS enabled, OSMO is accessible at:
 - **OSMO API**: `https://osmo.example.com/api/version`
 - **OSMO Web UI**: `https://osmo.example.com`
-- **OSMO CLI**: `osmo login https://osmo.example.com --method dev --username admin`
+- **OSMO CLI** (without Keycloak): `osmo login https://osmo.example.com --method dev --username admin`
+
+> If you plan to enable **Keycloak** (Option D below), skip `--method dev` -- see
+> [Step 13: Log in to OSMO](#step-13-log-in-to-osmo) for Keycloak-aware CLI login.
+
+### Option D: Keycloak Authentication
+
+Enable production-grade authentication for OSMO using Keycloak as the identity provider with Envoy sidecar proxies on all OSMO services. This provides OAuth2 authorization code flow (browser), device authorization flow (CLI), and service-account JWT tokens.
+
+**Reference:**
+- [OSMO Authentication Flow](https://nvidia.github.io/OSMO/main/deployment_guide/appendix/authentication/authentication_flow.html)
+- [Keycloak Setup Guide](https://nvidia.github.io/OSMO/main/deployment_guide/appendix/authentication/keycloak_setup.html)
+
+#### Prerequisites
+
+1. **TLS must be enabled** -- complete [Option C](#option-c-ssltls-with-lets-encrypt) first.
+2. **DNS A record for auth subdomain** -- create an A record for `auth-<your-domain>` (e.g. `auth-osmo.example.com`) pointing to the same LoadBalancer IP as your main domain.
+3. **TLS certificate for auth subdomain** -- run `03a-setup-tls-certificate.sh` a second time for the auth subdomain:
+
+   ```bash
+   export OSMO_INGRESS_HOSTNAME=auth-osmo.example.com
+   export OSMO_TLS_SECRET_NAME=osmo-tls-auth
+   export LETSENCRYPT_EMAIL=you@example.com
+   ./03a-setup-tls-certificate.sh
+   ```
+
+#### Enabling Keycloak
+
+Set these environment variables before running `04-deploy-osmo-control-plane.sh`:
+
+```bash
+export DEPLOY_KEYCLOAK=true
+export OSMO_INGRESS_HOSTNAME=osmo.example.com
+export KEYCLOAK_HOSTNAME=auth-osmo.example.com
+export OSMO_TLS_ENABLED=true
+
+./04-deploy-osmo-control-plane.sh
+```
+
+The script will automatically:
+- Deploy Keycloak in **production mode** with NGINX ingress and TLS
+- Import the **official OSMO realm** from [`sample_osmo_realm.json`](deploy/002-setup/sample_osmo_realm.json) (sourced from [OSMO docs](https://nvidia.github.io/OSMO/main/deployment_guide/getting_started/deploy_service.html#post-installation-keycloak-configuration)), which includes:
+  - Pre-defined **roles**: `osmo-admin`, `osmo-user`, `osmo-backend`, `grafana-user`, `grafana-admin`, `dashboard-user`, `dashboard-admin`
+  - Pre-defined **groups**: `Admin`, `User`, `Backend Operator` (with correct client-role mappings)
+  - Two OIDC **clients**: `osmo-device` (public, device code flow) and `osmo-browser-flow` (confidential, authorization code flow)
+  - **Protocol mappers** on both clients that add a `roles` claim to the JWT token (required for OSMO RBAC)
+  - Standard OIDC client scopes (profile, email, roles, etc.)
+- Customize the realm JSON: replace placeholder URLs (`https://default.com`) with your actual OSMO URL and set a generated client secret
+- Create a test user: `osmo-admin` / `osmo-admin` (assigned to the **Admin** group)
+- Generate the `oidc-secrets` Kubernetes secret (client secret + HMAC secret for Envoy)
+- Enable **Envoy sidecars** on OSMO service, router, and web-ui with:
+  - OAuth2 filter for browser-based login (redirects to Keycloak)
+  - JWT filter validating tokens from Keycloak (browser + device flows) and OSMO (service accounts)
+- Set `services.service.auth.enabled: true` with all OIDC endpoints
+
+#### Authentication Flow
+
+```
+Browser -> NGINX Ingress -> Envoy (OAuth2 filter) -> Keycloak -> JWT
+CLI     -> NGINX Ingress -> Envoy (JWT filter)    -> validates x-osmo-auth header
+```
+
+- **Browser**: Visit `https://osmo.example.com` -- Envoy's OAuth2 filter detects no session and redirects to Keycloak login. After authenticating, the user is redirected back with cookies set (`OAuthHMAC`, `IdToken`).
+- **CLI**: Run `osmo login https://osmo.example.com` -- uses the OAuth2 Device Authorization flow. The CLI opens a browser for the user to authenticate with Keycloak, then polls for the token.
+- **Service accounts**: Use OSMO's `/api/auth/jwt/access_token` endpoint to exchange a service token for an OSMO-signed JWT.
+
+#### Post-Deployment: Keycloak Admin
+
+Access the Keycloak admin console at `https://auth-osmo.example.com/admin`:
+- **Admin credentials**: `admin` / `<auto-generated password>` (shown in the script output)
+- **Test user**: `osmo-admin` / `osmo-admin`
+
+To manage users, groups, and roles for OSMO:
+- Create roles in both `osmo-browser-flow` and `osmo-device` clients (e.g. `osmo-admin`, `osmo-user`)
+- Create groups (e.g. `OSMO Admins`) and assign roles to groups
+- Add users to groups
+- See [Keycloak Group and Role Management](https://nvidia.github.io/OSMO/main/deployment_guide/appendix/authentication/keycloak_setup.html)
+
+#### Cleanup
+
+To remove Keycloak and disable authentication:
+```bash
+./cleanup/uninstall-keycloak.sh
+# Then re-deploy OSMO without DEPLOY_KEYCLOAK:
+unset DEPLOY_KEYCLOAK
+./04-deploy-osmo-control-plane.sh
+```
 
 ## Cost Optimization Tips
 

@@ -6,6 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/defaults.sh"
 
 OSMO_URL="${OSMO_URL:-http://localhost:8080}"
 OSMO_NAMESPACE="${OSMO_NAMESPACE:-osmo}"
@@ -24,8 +25,7 @@ check_kubectl || exit 1
 # -----------------------------------------------------------------------------
 log_info "Starting port-forward to OSMO service..."
 
-kubectl port-forward -n "${OSMO_NAMESPACE}" svc/osmo-service 8080:80 &>/dev/null &
-PORT_FORWARD_PID=$!
+start_osmo_port_forward "${OSMO_NAMESPACE}" 8080
 
 cleanup_port_forward() {
     if [[ -n "${PORT_FORWARD_PID:-}" ]]; then
@@ -54,9 +54,8 @@ log_success "Port-forward ready"
 # -----------------------------------------------------------------------------
 log_info "Creating gpu_tolerations pod template..."
 
-RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
-  "${OSMO_URL}/api/configs/pod_template/gpu_tolerations" \
-  -H "Content-Type: application/json" \
+RESPONSE=$(osmo_curl PUT "${OSMO_URL}/api/configs/pod_template/gpu_tolerations" \
+  -w "\n%{http_code}" \
   -d @"${SCRIPT_DIR}/gpu_pod_template.json")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -74,9 +73,8 @@ fi
 # -----------------------------------------------------------------------------
 log_info "Creating gpu platform in default pool..."
 
-RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
-  "${OSMO_URL}/api/configs/pool/default/platform/gpu" \
-  -H "Content-Type: application/json" \
+RESPONSE=$(osmo_curl PUT "${OSMO_URL}/api/configs/pool/default/platform/gpu" \
+  -w "\n%{http_code}" \
   -d @"${SCRIPT_DIR}/gpu_platform_update.json")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -96,11 +94,11 @@ log_info "Verifying configuration..."
 
 echo ""
 echo "Pod templates:"
-curl -s "${OSMO_URL}/api/configs/pod_template" | jq 'keys'
+osmo_curl GET "${OSMO_URL}/api/configs/pod_template" | jq 'keys'
 
 echo ""
 echo "GPU platform config:"
-curl -s "${OSMO_URL}/api/configs/pool/default" | jq '.platforms.gpu'
+osmo_curl GET "${OSMO_URL}/api/configs/pool/default" | jq '.platforms.gpu'
 
 # -----------------------------------------------------------------------------
 # Step 4: Check GPU resources
@@ -108,13 +106,14 @@ curl -s "${OSMO_URL}/api/configs/pool/default" | jq '.platforms.gpu'
 log_info "Checking GPU resources..."
 sleep 3  # Wait for backend to pick up changes
 
-RESOURCE_COUNT=$(curl -s "${OSMO_URL}/api/resources" | jq '[.resources[] | select(.allocatable_fields.gpu != null)] | length')
+RESOURCE_JSON=$(osmo_curl GET "${OSMO_URL}/api/resources" 2>/dev/null || echo '{}')
+RESOURCE_COUNT=$(echo "$RESOURCE_JSON" | jq '[(.resources // [])[] | select(.allocatable_fields.gpu != null)] | length' 2>/dev/null || echo "0")
 echo "GPU nodes visible to OSMO: ${RESOURCE_COUNT}"
 
 if [[ "$RESOURCE_COUNT" -gt 0 ]]; then
     echo ""
     echo "GPU resources:"
-    curl -s "${OSMO_URL}/api/resources" | jq '.resources[] | select(.allocatable_fields.gpu != null) | {name: .name, gpu: .allocatable_fields.gpu, cpu: .allocatable_fields.cpu, memory: .allocatable_fields.memory}'
+    echo "$RESOURCE_JSON" | jq '.resources[] | select(.allocatable_fields.gpu != null) | {name: .name, gpu: .allocatable_fields.gpu, cpu: .allocatable_fields.cpu, memory: .allocatable_fields.memory}'
 fi
 
 # -----------------------------------------------------------------------------
