@@ -214,9 +214,9 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    
    This deploys the community NGINX Ingress Controller with a LoadBalancer IP. It provides path-based routing to all OSMO services (API, router, Web UI). The LoadBalancer IP is auto-detected by later scripts.
 
-5. **(Optional) Enable TLS/SSL:**
+5. **(Optional) Enable TLS/SSL and Keycloak Authentication:**
 
-   If you want HTTPS, you need a **domain name** with a **DNS A record** pointing to the NGINX Ingress LoadBalancer public IP.
+   If you want HTTPS (and optionally Keycloak auth), you need **domain name(s)** with **DNS A records** pointing to the NGINX Ingress LoadBalancer public IP.
    
    First, get the LoadBalancer IP assigned in the previous step:
    ```bash
@@ -224,53 +224,54 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
      -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
    ```
    
-   Then, at your DNS provider, create an **A record**:
+   Then, at your DNS provider, create **A records**:
    ```
-   osmo.example.com  →  <LoadBalancer IP>
+   osmo.example.com       →  <LoadBalancer IP>   # always required for TLS
+   auth-osmo.example.com  →  <LoadBalancer IP>   # only if using Keycloak
    ```
    
-   > **Note:** Let's Encrypt (used by both options below) cannot issue certificates for bare IP addresses — a domain name is required. DNS propagation may take a few minutes; verify with `nslookup osmo.example.com` before proceeding.
+   > **Note:** Let's Encrypt cannot issue certificates for bare IP addresses. DNS propagation may take a few minutes; verify with `nslookup osmo.example.com` before proceeding.
    
-   Once the A record is in place, run **one** of these before deploying OSMO:
+   Once the A record(s) are in place, run the **interactive** TLS setup script:
 
    ```bash
-   # Set required variables
-   export OSMO_INGRESS_HOSTNAME=osmo.example.com
-   export LETSENCRYPT_EMAIL=you@example.com
-   
-   # Option A: Manual certbot (DNS-01 challenge — you add a TXT record to prove ownership)
    ./03a-setup-tls-certificate.sh
-   
-   # Option B: Automated cert-manager (HTTP-01 — verifies via the A record you just created)
-   ./03c-deploy-cert-manager.sh
    ```
-   
-   Then set `export OSMO_TLS_ENABLED=true` before running subsequent scripts. See [SSL/TLS Setup](#option-c-ssltls-with-lets-encrypt) for details.
 
-6. **(Optional) Enable Keycloak Authentication:**
+   The script will prompt you for:
+   - Your main OSMO domain (e.g. `osmo.example.com`)
+   - Your email for Let's Encrypt registration
+   - Whether you want Keycloak authentication (if yes, it also obtains a cert for `auth-<domain>`)
 
-   If you want production-grade authentication (OAuth2 + JWT via Envoy sidecars), you need TLS enabled (step 5) plus a separate TLS certificate for the Keycloak auth subdomain.
+   It creates the correct Kubernetes TLS secrets automatically:
+
+   | Domain | Secret name | Used by |
+   |--------|-------------|---------|
+   | `osmo.example.com` | `osmo-tls` | OSMO service/router/UI ingresses |
+   | `auth-osmo.example.com` | `osmo-tls-auth` | Keycloak ingress (only if Keycloak) |
+
+   At the end, the script tells you which `export` commands to run. For example:
 
    ```bash
-   # Prerequisites: TLS must be enabled (step 5), and you need a DNS A record for the auth subdomain
-   # e.g. auth-osmo.example.com -> <LoadBalancer IP>
-   
-   # Get TLS cert for auth subdomain
-   export OSMO_INGRESS_HOSTNAME=auth-osmo.example.com
-   export OSMO_TLS_SECRET_NAME=osmo-tls-auth
-   export LETSENCRYPT_EMAIL=you@example.com
-   ./03a-setup-tls-certificate.sh
-   
-   # Enable Keycloak (set before running 04-deploy-osmo-control-plane.sh)
-   export DEPLOY_KEYCLOAK=true
-   export OSMO_INGRESS_HOSTNAME=osmo.example.com   # Reset to main domain
-   export KEYCLOAK_HOSTNAME=auth-osmo.example.com
+   # TLS only (no Keycloak)
    export OSMO_TLS_ENABLED=true
-   ```
-   
-   See [Keycloak Authentication](#option-d-keycloak-authentication) for details. Skip this step if you want an open API (no authentication).
+   export OSMO_INGRESS_HOSTNAME=osmo.example.com
 
-7. Deploy OSMO control plane:
+   # TLS + Keycloak
+   export OSMO_TLS_ENABLED=true
+   export OSMO_INGRESS_HOSTNAME=osmo.example.com
+   export DEPLOY_KEYCLOAK=true
+   export KEYCLOAK_HOSTNAME=auth-osmo.example.com
+   ```
+
+   > **Tip:** You can also pre-set the environment variables to skip the prompts (useful for CI):
+   > `OSMO_INGRESS_HOSTNAME`, `LETSENCRYPT_EMAIL`, and `DEPLOY_KEYCLOAK=true`.
+
+   **Alternative:** Use `./03c-deploy-cert-manager.sh` for automated HTTP-01 challenge instead of manual DNS-01.
+   
+   See [SSL/TLS Setup](#option-c-ssltls-with-lets-encrypt) for details, and [Keycloak Authentication](#option-d-keycloak-authentication) if enabling auth.
+
+6. Deploy OSMO control plane:
    ```bash
    ./04-deploy-osmo-control-plane.sh
    ```
@@ -284,26 +285,33 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    
    > **Note:** The script automatically retrieves PostgreSQL password and MEK from MysteryBox if you ran `secrets-init.sh` earlier.
 
-8. Deploy OSMO backend operator:
+7. Deploy OSMO backend operator:
    ```bash
+   # If Keycloak is enabled, set DEPLOY_KEYCLOAK so the script uses
+   # the Keycloak password grant flow instead of dev auth:
+   export DEPLOY_KEYCLOAK=true   # only if Keycloak is enabled
+   
    ./05-deploy-osmo-backend.sh
    ```
    
-   The script automatically:
-   - Starts a port-forward to OSMO service
-   - Logs in using dev method (since Keycloak auth is disabled)
-   - Creates a service token for the backend operator
-   - Deploys the backend operator
-   - Cleans up the port-forward
+   The script automatically creates a service token for the backend operator:
+   - **Without Keycloak:** port-forwards to OSMO service and logs in with dev auth
+   - **With Keycloak:** gets a JWT via Keycloak Resource Owner Password Grant, then
+     calls the OSMO REST API with the `x-osmo-auth` header to create the token
+   
+   It then deploys the backend operator Helm chart with the token.
    
    This deploys the backend operator that manages GPU workloads:
-   - Connects to OSMO control plane via `osmo-agent`
+   - Connects to OSMO control plane via `osmo-agent` (WebSocket)
    - Configures resource pools for GPU nodes
    - Enables workflow execution on the Kubernetes cluster
    
    > **Manual alternative:** If you prefer to create the token manually, set `OSMO_SERVICE_TOKEN` environment variable before running the script.
+   >
+   > **Keycloak credentials:** The script defaults to `osmo-admin`/`osmo-admin`. Override with
+   > `OSMO_KC_ADMIN_USER` and `OSMO_KC_ADMIN_PASS` if you changed the Keycloak user credentials.
 
-9. Verify backend deployment:
+8. Verify backend deployment:
    
    Verify the backend is registered with OSMO using the NGINX Ingress LoadBalancer IP:
    ```bash
@@ -317,7 +325,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    The Ingress LoadBalancer IP is shown in the output of `04-deploy-osmo-control-plane.sh`.
    You should see the backend configuration with status `ONLINE`.
 
-10. Configure OSMO storage:
+9. Configure OSMO storage:
    ```bash
    ./06-configure-storage.sh
    ```
@@ -330,7 +338,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    
    > **Note:** The `osmo-storage` secret (with S3 credentials) was created automatically by `04-deploy-osmo-control-plane.sh`.
 
-11. Access OSMO (via NGINX Ingress LoadBalancer):
+10. Access OSMO (via NGINX Ingress LoadBalancer):
    
    The NGINX Ingress Controller exposes OSMO via a LoadBalancer IP. The IP is shown in the output of `04-deploy-osmo-control-plane.sh`, or retrieve it with:
    ```bash
@@ -363,7 +371,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    > by `04-deploy-osmo-control-plane.sh` using the domain (if TLS is enabled) or the LoadBalancer IP.
    > If you need to reconfigure it manually, run `./07-configure-service-url.sh`.
 
-12. Configure pool for GPU workloads:
+11. Configure pool for GPU workloads:
    
    The default pool needs GPU platform configuration to run GPU workflows. This creates a pod template with the correct node selector and tolerations for GPU nodes:
    
@@ -382,7 +390,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    osmo config show POD_TEMPLATE gpu_tolerations
    ```
 
-13. **Log in to OSMO** (required before CLI/browser use):
+12. **Log in to OSMO** (required before CLI/browser use):
 
    The login method depends on whether Keycloak authentication is enabled.
 
@@ -419,7 +427,7 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    > **Reference:** See [Authentication Flow](https://nvidia.github.io/OSMO/main/deployment_guide/appendix/authentication/authentication_flow.html) for the full architecture
    > (OAuth2 code flow, device flow, service-account tokens, JWT validation).
 
-14. Run a test workflow (optional):
+13. Run a test workflow (optional):
    
    Verify the complete setup by running a test workflow from the `workflows/osmo/` directory:
    
@@ -539,32 +547,37 @@ Enable HTTPS for OSMO using free Let's Encrypt certificates. Two paths are avail
 - NGINX Ingress Controller deployed (`03-deploy-nginx-ingress.sh`)
 - `certbot` installed (Path A only) or `helm` available (Path B only)
 
-#### Path A: Manual Certbot (DNS-01 Challenge)
+#### Path A: Interactive Certbot (DNS-01 Challenge)
 
 Best for: users who want full manual control, or whose DNS provider has no API.
 
-1. Set environment variables:
-   ```bash
-   export OSMO_INGRESS_HOSTNAME=osmo.example.com
-   export LETSENCRYPT_EMAIL=you@example.com
-   ```
-
-2. Run the certificate setup script:
+1. Run the interactive certificate setup script:
    ```bash
    ./03a-setup-tls-certificate.sh
    ```
 
-3. When prompted by certbot, add the displayed DNS TXT record at your DNS provider:
-   - Record name: `_acme-challenge.osmo.example.com`
+   The script will prompt you for:
+   - Your main OSMO domain (e.g. `osmo.example.com`)
+   - Your email for Let's Encrypt registration
+   - Whether you plan to enable Keycloak (if yes, it also obtains a cert for the auth subdomain)
+
+   For each certificate, certbot will pause and ask you to create a DNS TXT record:
+   - Record name: `_acme-challenge.<domain>`
    - Record value: (provided by certbot)
    - Wait 1-5 minutes for DNS propagation, then press Enter
 
-4. Enable TLS for subsequent scripts:
+   > **Non-interactive mode:** Pre-set `OSMO_INGRESS_HOSTNAME`, `LETSENCRYPT_EMAIL`, and optionally `DEPLOY_KEYCLOAK=true` to skip the prompts.
+
+2. Enable TLS for subsequent scripts (the script will tell you which exports to run):
    ```bash
    export OSMO_TLS_ENABLED=true
+   export OSMO_INGRESS_HOSTNAME=osmo.example.com
+   # If Keycloak:
+   export DEPLOY_KEYCLOAK=true
+   export KEYCLOAK_HOSTNAME=auth-osmo.example.com
    ```
 
-5. **Renewal:** Certificates expire after 90 days. Run before expiry:
+3. **Renewal:** Certificates expire after 90 days. Run before expiry:
    ```bash
    ./03b-renew-tls-certificate.sh
    ```
@@ -618,16 +631,8 @@ Enable production-grade authentication for OSMO using Keycloak as the identity p
 
 #### Prerequisites
 
-1. **TLS must be enabled** -- complete [Option C](#option-c-ssltls-with-lets-encrypt) first.
-2. **DNS A record for auth subdomain** -- create an A record for `auth-<your-domain>` (e.g. `auth-osmo.example.com`) pointing to the same LoadBalancer IP as your main domain.
-3. **TLS certificate for auth subdomain** -- run `03a-setup-tls-certificate.sh` a second time for the auth subdomain:
-
-   ```bash
-   export OSMO_INGRESS_HOSTNAME=auth-osmo.example.com
-   export OSMO_TLS_SECRET_NAME=osmo-tls-auth
-   export LETSENCRYPT_EMAIL=you@example.com
-   ./03a-setup-tls-certificate.sh
-   ```
+1. **TLS must be enabled** -- complete [Option C](#option-c-ssltls-with-lets-encrypt) first. If you ran `03a-setup-tls-certificate.sh` interactively and answered "yes" to Keycloak, both certificates are already in place.
+2. **DNS A records** -- both the main domain and `auth-<domain>` (e.g. `auth-osmo.example.com`) must point to the same LoadBalancer IP.
 
 #### Enabling Keycloak
 

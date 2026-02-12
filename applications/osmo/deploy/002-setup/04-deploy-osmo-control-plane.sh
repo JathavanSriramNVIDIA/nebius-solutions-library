@@ -513,9 +513,31 @@ if [[ "${DEPLOY_KEYCLOAK:-false}" == "true" ]]; then
             KC_EXTERNAL="true"
             log_info "Keycloak will be exposed externally at: https://${AUTH_DOMAIN}"
         else
-            log_warning "TLS secret '${KC_TLS_SECRET}' for Keycloak not found."
-            log_warning "Run: OSMO_INGRESS_HOSTNAME=${AUTH_DOMAIN} OSMO_TLS_SECRET_NAME=${KC_TLS_SECRET} ./03a-setup-tls-certificate.sh"
-            log_warning "Keycloak will be internal-only (port-forward access)"
+            # Auto-recover: if local cert files exist for the auth domain, recreate the secret
+            KC_CERT_DIR="${OSMO_TLS_CERT_DIR:-$HOME/.osmo-certs}"
+            KC_LOCAL_CERT="${KC_CERT_DIR}/live/${AUTH_DOMAIN}/fullchain.pem"
+            KC_LOCAL_KEY="${KC_CERT_DIR}/live/${AUTH_DOMAIN}/privkey.pem"
+            if [[ -f "$KC_LOCAL_CERT" && -f "$KC_LOCAL_KEY" ]]; then
+                log_warning "TLS secret '${KC_TLS_SECRET}' for Keycloak not found, but local certs exist."
+                log_info "Auto-recovering: recreating secret from ${KC_CERT_DIR}/live/${AUTH_DOMAIN}/..."
+                kubectl create secret tls "${KC_TLS_SECRET}" \
+                    --cert="${KC_LOCAL_CERT}" \
+                    --key="${KC_LOCAL_KEY}" \
+                    --namespace "${OSMO_NAMESPACE}" \
+                    --dry-run=client -o yaml | kubectl apply -f -
+                kubectl create secret tls "${KC_TLS_SECRET}" \
+                    --cert="${KC_LOCAL_CERT}" \
+                    --key="${KC_LOCAL_KEY}" \
+                    --namespace "${INGRESS_NAMESPACE:-ingress-nginx}" \
+                    --dry-run=client -o yaml | kubectl apply -f -
+                log_success "TLS secret '${KC_TLS_SECRET}' recreated from local cert files"
+                KC_EXTERNAL="true"
+                log_info "Keycloak will be exposed externally at: https://${AUTH_DOMAIN}"
+            else
+                log_warning "TLS secret '${KC_TLS_SECRET}' for Keycloak not found."
+                log_warning "Run: OSMO_INGRESS_HOSTNAME=${AUTH_DOMAIN} ./03a-setup-tls-certificate.sh"
+                log_warning "Keycloak will be internal-only (port-forward access)"
+            fi
         fi
     fi
 
@@ -675,6 +697,7 @@ EOF
     # Install or upgrade Keycloak
     # Note: Don't use --wait as it can hang; we'll check status separately
     helm upgrade --install keycloak bitnami/keycloak \
+        --version 24.4.9 \
         --namespace "${OSMO_NAMESPACE}" \
         -f /tmp/keycloak-values.yaml \
         --timeout 10m || {
@@ -863,6 +886,66 @@ spec:
           echo "Realm 'osmo' verified"
           echo ""
           
+          # ── Step 4b: Set client secret for osmo-browser-flow ───
+          # Keycloak ignores the "secret" field during realm import and
+          # generates its own random secret. We MUST explicitly set it via the
+          # admin API so it matches the oidc-secrets Kubernetes secret that
+          # Envoy reads at runtime.
+          echo "=== Step 4b: Set osmo-browser-flow client secret ==="
+          
+          # Refresh token (import may have been slow)
+          TOKEN=\$(curl -s -X POST "\${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+            --data-urlencode "client_id=admin-cli" \
+            --data-urlencode "username=admin" \
+            --data-urlencode "password=${KEYCLOAK_ADMIN_PASSWORD}" \
+            --data-urlencode "grant_type=password" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
+          
+          # Find the internal UUID for the osmo-browser-flow client
+          BROWSER_CLIENT_UUID=\$(curl -s "\${KEYCLOAK_URL}/admin/realms/osmo/clients?clientId=osmo-browser-flow" \
+            -H "Authorization: Bearer \$TOKEN" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+          
+          if [ -n "\$BROWSER_CLIENT_UUID" ]; then
+            echo "  Client UUID: \$BROWSER_CLIENT_UUID"
+            
+            # GET the full client representation, replace ONLY the secret field, PUT it back.
+            # This preserves redirect URIs, scopes, mappers, and all other config.
+            curl -s "\${KEYCLOAK_URL}/admin/realms/osmo/clients/\${BROWSER_CLIENT_UUID}" \
+              -H "Authorization: Bearer \$TOKEN" > /tmp/browser-client.json
+            
+            # Replace the masked secret with our generated secret
+            # Handle both compact ("secret":"...") and spaced ("secret" : "...") JSON
+            sed -i 's/"secret"[ ]*:[ ]*"[^"]*"/"secret":"${OIDC_CLIENT_SECRET}"/' /tmp/browser-client.json
+            
+            SET_SECRET_HTTP=\$(curl -s -o /dev/null -w "%{http_code}" \
+              -X PUT "\${KEYCLOAK_URL}/admin/realms/osmo/clients/\${BROWSER_CLIENT_UUID}" \
+              -H "Authorization: Bearer \$TOKEN" \
+              -H "Content-Type: application/json" \
+              -d @/tmp/browser-client.json)
+            
+            if [ "\$SET_SECRET_HTTP" = "204" ] || [ "\$SET_SECRET_HTTP" = "200" ]; then
+              echo "  Client secret set successfully (HTTP \$SET_SECRET_HTTP)"
+            else
+              echo "  WARNING: Failed to set client secret (HTTP \$SET_SECRET_HTTP)"
+              echo "  OAuth browser flow may fail – check Keycloak logs"
+            fi
+            
+            # Verify: read back the secret and compare
+            ACTUAL_SECRET=\$(curl -s "\${KEYCLOAK_URL}/admin/realms/osmo/clients/\${BROWSER_CLIENT_UUID}/client-secret" \
+              -H "Authorization: Bearer \$TOKEN" | grep -o '"value":"[^"]*"' | cut -d'"' -f4)
+            if [ "\$ACTUAL_SECRET" = "${OIDC_CLIENT_SECRET}" ]; then
+              echo "  Verified: client secret matches oidc-secrets"
+            else
+              echo "  WARNING: Client secret mismatch!"
+              echo "  Expected: ${OIDC_CLIENT_SECRET:0:8}..."
+              echo "  Got:      \${ACTUAL_SECRET:0:8}..."
+              echo "  This will cause 'OAuth flow failed' errors"
+            fi
+          else
+            echo "  WARNING: osmo-browser-flow client not found after import"
+            echo "  OAuth browser flow will not work"
+          fi
+          echo ""
+          
           # ── Step 5: Create test user ────────────────────────────
           echo "=== Step 5: Create test user ==="
           
@@ -1028,13 +1111,36 @@ if [[ "$TLS_ENABLED" == "true" ]]; then
     # Check that the TLS secret exists (created by 03a or 03c)
     OSMO_NS_CHECK="${OSMO_NAMESPACE:-osmo}"
     INGRESS_NS_CHECK="${INGRESS_NAMESPACE:-ingress-nginx}"
+    CERT_DIR="${OSMO_TLS_CERT_DIR:-$HOME/.osmo-certs}"
     TLS_SECRET_FOUND="false"
     if kubectl get secret "${TLS_SECRET_NAME}" -n "${OSMO_NS_CHECK}" &>/dev/null || \
        kubectl get secret "${TLS_SECRET_NAME}" -n "${INGRESS_NS_CHECK}" &>/dev/null; then
         TLS_SECRET_FOUND="true"
     fi
     if [[ "$TLS_SECRET_FOUND" != "true" ]]; then
-        log_error "TLS secret '${TLS_SECRET_NAME}' not found."
+        # Auto-recover: if local cert files exist, recreate the K8s secret
+        LOCAL_CERT="${CERT_DIR}/live/${INGRESS_HOSTNAME}/fullchain.pem"
+        LOCAL_KEY="${CERT_DIR}/live/${INGRESS_HOSTNAME}/privkey.pem"
+        if [[ -f "$LOCAL_CERT" && -f "$LOCAL_KEY" ]]; then
+            log_warning "TLS secret '${TLS_SECRET_NAME}' not found in cluster, but local certs exist."
+            log_info "Auto-recovering: recreating secret from ${CERT_DIR}/live/${INGRESS_HOSTNAME}/..."
+            kubectl create namespace "${OSMO_NS_CHECK}" --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
+            kubectl create secret tls "${TLS_SECRET_NAME}" \
+                --cert="${LOCAL_CERT}" \
+                --key="${LOCAL_KEY}" \
+                --namespace "${OSMO_NS_CHECK}" \
+                --dry-run=client -o yaml | kubectl apply -f -
+            kubectl create secret tls "${TLS_SECRET_NAME}" \
+                --cert="${LOCAL_CERT}" \
+                --key="${LOCAL_KEY}" \
+                --namespace "${INGRESS_NS_CHECK}" \
+                --dry-run=client -o yaml | kubectl apply -f -
+            log_success "TLS secret '${TLS_SECRET_NAME}' recreated from local cert files"
+            TLS_SECRET_FOUND="true"
+        fi
+    fi
+    if [[ "$TLS_SECRET_FOUND" != "true" ]]; then
+        log_error "TLS secret '${TLS_SECRET_NAME}' not found and no local certs at ${CERT_DIR}/live/${INGRESS_HOSTNAME}/"
         echo "  Run one of these scripts first to obtain a certificate:"
         echo "    ./03a-setup-tls-certificate.sh   (manual certbot with DNS-01)"
         echo "    ./03c-deploy-cert-manager.sh     (automated cert-manager with HTTP-01)"

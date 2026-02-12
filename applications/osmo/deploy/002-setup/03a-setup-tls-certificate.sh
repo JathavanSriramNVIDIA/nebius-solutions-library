@@ -1,22 +1,25 @@
 #!/bin/bash
 #
-# Obtain a TLS certificate using certbot with manual DNS-01 challenge.
+# Obtain TLS certificates using certbot with manual DNS-01 challenge.
 #
-# This is an INTERACTIVE script. Certbot will pause and ask you to create
-# a DNS TXT record at your DNS provider to prove domain ownership.
+# This is an INTERACTIVE script that guides you through obtaining certificates
+# for your OSMO deployment. It handles both the main domain and the Keycloak
+# auth subdomain (if needed) in a single run.
 #
 # Prerequisites:
 #   - certbot installed (apt install certbot / brew install certbot / pip install certbot)
-#   - OSMO_INGRESS_HOSTNAME set to your domain (e.g. osmo.example.com)
-#   - LETSENCRYPT_EMAIL set to your email for Let's Encrypt registration
 #   - kubectl connected to the cluster
 #
 # Run after 03-deploy-nginx-ingress.sh and before 04-deploy-osmo-control-plane.sh.
 #
-# The script creates a Kubernetes TLS secret named "osmo-tls" in the
-# ingress-nginx namespace. This secret is used by NGINX Ingress for TLS termination.
+# Two TLS secrets are created (as needed):
+#   osmo-tls       -> main domain (OSMO service/router/UI ingresses)
+#   osmo-tls-auth  -> auth subdomain (Keycloak ingress, only if Keycloak is enabled)
 #
 # For renewal, run 03b-renew-tls-certificate.sh before the 90-day expiry.
+#
+# Non-interactive mode: set OSMO_INGRESS_HOSTNAME and LETSENCRYPT_EMAIL as env
+# vars to skip the prompts. Set DEPLOY_KEYCLOAK=true to also obtain the auth cert.
 #
 
 set -e
@@ -50,146 +53,236 @@ if ! command -v certbot &>/dev/null; then
 fi
 log_success "certbot found: $(certbot --version 2>&1 | head -1)"
 
-# Check required variables
-DOMAIN="${OSMO_INGRESS_HOSTNAME:-}"
-EMAIL="${LETSENCRYPT_EMAIL:-}"
-
-if [[ -z "$DOMAIN" ]]; then
-    log_error "OSMO_INGRESS_HOSTNAME is not set."
-    echo ""
-    echo "Set your domain before running this script:"
-    echo "  export OSMO_INGRESS_HOSTNAME=osmo.example.com"
-    echo ""
-    exit 1
-fi
-
-if [[ -z "$EMAIL" ]]; then
-    log_error "LETSENCRYPT_EMAIL is not set."
-    echo ""
-    echo "Set your email for Let's Encrypt registration:"
-    echo "  export LETSENCRYPT_EMAIL=you@example.com"
-    echo ""
-    exit 1
-fi
-
+# -----------------------------------------------------------------------------
+# Interactive configuration
+# -----------------------------------------------------------------------------
 CERT_DIR="${OSMO_TLS_CERT_DIR:-$HOME/.osmo-certs}"
-TLS_SECRET_NAME="${OSMO_TLS_SECRET_NAME:-osmo-tls}"
 INGRESS_NS="${INGRESS_NAMESPACE:-ingress-nginx}"
+OSMO_NS="${OSMO_NAMESPACE:-osmo}"
 
-log_info "Domain:          ${DOMAIN}"
-log_info "Email:           ${EMAIL}"
-log_info "Cert directory:  ${CERT_DIR}"
-log_info "TLS secret name: ${TLS_SECRET_NAME}"
-log_info "Target namespace: ${INGRESS_NS}"
+# Prompt for main domain
+MAIN_DOMAIN="${OSMO_INGRESS_HOSTNAME:-}"
+if [[ -z "$MAIN_DOMAIN" ]]; then
+    echo "Enter the main OSMO domain (e.g. osmo.example.com):"
+    read -r -p "  Domain: " MAIN_DOMAIN
+    echo ""
+    if [[ -z "$MAIN_DOMAIN" ]]; then
+        log_error "Domain is required."
+        exit 1
+    fi
+fi
 
-# -----------------------------------------------------------------------------
-# Create cert directory
-# -----------------------------------------------------------------------------
-mkdir -p "${CERT_DIR}/work" "${CERT_DIR}/logs"
+# Prompt for email
+EMAIL="${LETSENCRYPT_EMAIL:-}"
+if [[ -z "$EMAIL" ]]; then
+    echo "Enter your email for Let's Encrypt registration:"
+    read -r -p "  Email: " EMAIL
+    echo ""
+    if [[ -z "$EMAIL" ]]; then
+        log_error "Email is required."
+        exit 1
+    fi
+fi
 
-# -----------------------------------------------------------------------------
-# Run certbot (interactive DNS-01 challenge)
-# -----------------------------------------------------------------------------
-echo ""
+# Ask about Keycloak
+# In interactive mode (we prompted for domain or email), always show the prompt so the user
+# is not surprised when Keycloak is skipped. Only use DEPLOY_KEYCLOAK when both were pre-set.
+if [[ -z "${OSMO_INGRESS_HOSTNAME:-}" ]] || [[ -z "${LETSENCRYPT_EMAIL:-}" ]]; then
+    SETUP_KEYCLOAK=""
+else
+    SETUP_KEYCLOAK="${DEPLOY_KEYCLOAK:-false}"
+fi
+if [[ -z "$SETUP_KEYCLOAK" ]]; then
+    echo "Will you enable Keycloak authentication?"
+    echo "  This requires a separate TLS certificate for the auth subdomain"
+    echo "  (e.g. auth-${MAIN_DOMAIN})."
+    echo ""
+    read -r -p "  Enable Keycloak? [y/N]: " KC_ANSWER
+    echo ""
+    if [[ "$KC_ANSWER" =~ ^[Yy] ]]; then
+        SETUP_KEYCLOAK="true"
+    else
+        SETUP_KEYCLOAK="false"
+    fi
+fi
+
+# Derive auth domain
+AUTH_DOMAIN=""
+if [[ "$SETUP_KEYCLOAK" == "true" ]]; then
+    AUTH_DOMAIN="${KEYCLOAK_HOSTNAME:-auth-${MAIN_DOMAIN}}"
+fi
+
+# Build list of domains to process
+# Each entry: "domain:secret_name"
+DOMAINS_TO_PROCESS=()
+DOMAINS_TO_PROCESS+=("${MAIN_DOMAIN}:osmo-tls")
+if [[ -n "$AUTH_DOMAIN" ]]; then
+    DOMAINS_TO_PROCESS+=("${AUTH_DOMAIN}:${KEYCLOAK_TLS_SECRET_NAME:-osmo-tls-auth}")
+fi
+
+# Show summary
 echo "========================================"
-echo "  Starting Let's Encrypt DNS-01 Challenge"
+echo "  Certificate Plan"
 echo "========================================"
 echo ""
-echo "Certbot will ask you to create a DNS TXT record."
-echo "When prompted:"
-echo "  1. Log in to your DNS provider"
-echo "  2. Create a TXT record for _acme-challenge.${DOMAIN}"
-echo "  3. Wait for DNS propagation (1-5 minutes)"
-echo "  4. Press Enter in this terminal to continue"
+echo "  Email:          ${EMAIL}"
+echo "  Cert directory: ${CERT_DIR}"
 echo ""
-log_info "Starting certbot..."
+echo "  Certificates to obtain:"
+for entry in "${DOMAINS_TO_PROCESS[@]}"; do
+    d="${entry%%:*}"
+    s="${entry##*:}"
+    echo "    ${d}  ->  secret '${s}'"
+done
+echo ""
+if [[ ${#DOMAINS_TO_PROCESS[@]} -gt 1 ]]; then
+    echo "  Certbot will run once per domain. Each requires a separate DNS TXT record."
+    echo ""
+fi
+read -r -p "  Press Enter to continue (or Ctrl-C to abort)..."
+echo ""
 
-certbot certonly \
-    --manual \
-    --preferred-challenges dns \
-    -d "${DOMAIN}" \
-    --email "${EMAIL}" \
-    --agree-tos \
-    --no-eff-email \
-    --config-dir "${CERT_DIR}" \
-    --work-dir "${CERT_DIR}/work" \
-    --logs-dir "${CERT_DIR}/logs" || {
-    log_error "certbot failed. Check the output above for details."
-    exit 1
+# -----------------------------------------------------------------------------
+# Helper function: obtain cert and create secret for one domain
+# -----------------------------------------------------------------------------
+obtain_cert_and_create_secret() {
+    local domain="$1"
+    local secret_name="$2"
+
+    echo ""
+    echo "========================================"
+    echo "  Certificate: ${domain}"
+    echo "  Secret:      ${secret_name}"
+    echo "========================================"
+    echo ""
+
+    # Create cert directory
+    mkdir -p "${CERT_DIR}/work" "${CERT_DIR}/logs"
+
+    # Run certbot
+    echo "Certbot will ask you to create a DNS TXT record."
+    echo "When prompted:"
+    echo "  1. Log in to your DNS provider"
+    echo "  2. Create a TXT record for _acme-challenge.${domain}"
+    echo "  3. Wait for DNS propagation (1-5 minutes)"
+    echo "  4. Press Enter in this terminal to continue"
+    echo ""
+    log_info "Starting certbot for ${domain}..."
+
+    certbot certonly \
+        --manual \
+        --preferred-challenges dns \
+        -d "${domain}" \
+        --email "${EMAIL}" \
+        --agree-tos \
+        --no-eff-email \
+        --config-dir "${CERT_DIR}" \
+        --work-dir "${CERT_DIR}/work" \
+        --logs-dir "${CERT_DIR}/logs" || {
+        log_error "certbot failed for ${domain}. Check the output above."
+        return 1
+    }
+
+    # Verify certificate files
+    local cert_path="${CERT_DIR}/live/${domain}/fullchain.pem"
+    local key_path="${CERT_DIR}/live/${domain}/privkey.pem"
+
+    if [[ ! -f "$cert_path" || ! -f "$key_path" ]]; then
+        log_error "Certificate files not found for ${domain}."
+        echo "  Expected cert: ${cert_path}"
+        echo "  Expected key:  ${key_path}"
+        return 1
+    fi
+
+    log_success "Certificate obtained for ${domain}"
+    echo ""
+    echo "  Full chain: ${cert_path}"
+    echo "  Private key: ${key_path}"
+
+    # Show certificate details
+    echo ""
+    log_info "Certificate details:"
+    openssl x509 -in "${cert_path}" -noout -subject -issuer -dates 2>/dev/null || true
+
+    # Create Kubernetes TLS secrets
+    echo ""
+    log_info "Creating Kubernetes TLS secret '${secret_name}' in namespace '${INGRESS_NS}'..."
+    kubectl create secret tls "${secret_name}" \
+        --cert="${cert_path}" \
+        --key="${key_path}" \
+        --namespace "${INGRESS_NS}" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    log_success "TLS secret '${secret_name}' created in namespace '${INGRESS_NS}'"
+
+    if [[ "$OSMO_NS" != "$INGRESS_NS" ]]; then
+        log_info "Creating TLS secret in namespace '${OSMO_NS}'..."
+        kubectl create namespace "${OSMO_NS}" --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
+        kubectl create secret tls "${secret_name}" \
+            --cert="${cert_path}" \
+            --key="${key_path}" \
+            --namespace "${OSMO_NS}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+        log_success "TLS secret also created in namespace '${OSMO_NS}'"
+    fi
+
+    echo ""
+    log_success "Done: ${domain} -> secret '${secret_name}'"
 }
 
 # -----------------------------------------------------------------------------
-# Verify certificate files
+# Process each domain
 # -----------------------------------------------------------------------------
-CERT_PATH="${CERT_DIR}/live/${DOMAIN}/fullchain.pem"
-KEY_PATH="${CERT_DIR}/live/${DOMAIN}/privkey.pem"
+FAILED=()
+for entry in "${DOMAINS_TO_PROCESS[@]}"; do
+    domain="${entry%%:*}"
+    secret_name="${entry##*:}"
+    if ! obtain_cert_and_create_secret "$domain" "$secret_name"; then
+        FAILED+=("$domain")
+    fi
+done
 
-if [[ ! -f "$CERT_PATH" || ! -f "$KEY_PATH" ]]; then
-    log_error "Certificate files not found after certbot."
-    echo "  Expected cert: ${CERT_PATH}"
-    echo "  Expected key:  ${KEY_PATH}"
+# -----------------------------------------------------------------------------
+# Summary
+# -----------------------------------------------------------------------------
+echo ""
+echo "========================================"
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+    log_warning "TLS Certificate Setup Partially Complete"
+    echo "========================================"
     echo ""
-    echo "Check certbot logs: ${CERT_DIR}/logs/"
-    exit 1
+    echo "  Failed domains:"
+    for d in "${FAILED[@]}"; do
+        echo "    - ${d}"
+    done
+    echo ""
+    echo "  Fix the issues above and re-run this script."
+else
+    log_success "TLS Certificate Setup Complete"
+    echo "========================================"
 fi
-
-log_success "Certificate obtained successfully"
 echo ""
-echo "Certificate files:"
-echo "  Full chain: ${CERT_PATH}"
-echo "  Private key: ${KEY_PATH}"
-
-# Show certificate details
-echo ""
-log_info "Certificate details:"
-openssl x509 -in "${CERT_PATH}" -noout -subject -issuer -dates 2>/dev/null || true
-
-# -----------------------------------------------------------------------------
-# Create Kubernetes TLS secret
-# -----------------------------------------------------------------------------
-echo ""
-log_info "Creating Kubernetes TLS secret '${TLS_SECRET_NAME}' in namespace '${INGRESS_NS}'..."
-
-kubectl create secret tls "${TLS_SECRET_NAME}" \
-    --cert="${CERT_PATH}" \
-    --key="${KEY_PATH}" \
-    --namespace "${INGRESS_NS}" \
-    --dry-run=client -o yaml | kubectl apply -f -
-
-log_success "TLS secret '${TLS_SECRET_NAME}' created in namespace '${INGRESS_NS}'"
-
-# Also create in osmo namespace (some ingress resources may reference it there)
-OSMO_NS="${OSMO_NAMESPACE:-osmo}"
-if [[ "$OSMO_NS" != "$INGRESS_NS" ]]; then
-    log_info "Creating TLS secret in namespace '${OSMO_NS}'..."
-    kubectl create namespace "${OSMO_NS}" --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
-    kubectl create secret tls "${TLS_SECRET_NAME}" \
-        --cert="${CERT_PATH}" \
-        --key="${KEY_PATH}" \
-        --namespace "${OSMO_NS}" \
-        --dry-run=client -o yaml | kubectl apply -f -
-    log_success "TLS secret also created in namespace '${OSMO_NS}'"
-fi
-
-# -----------------------------------------------------------------------------
-# Export variables for downstream scripts
-# -----------------------------------------------------------------------------
-export OSMO_TLS_ENABLED="true"
-export OSMO_TLS_SECRET_NAME="${TLS_SECRET_NAME}"
-
-echo ""
-echo "========================================"
-log_success "TLS Certificate Setup Complete"
-echo "========================================"
+echo "  Secrets created:"
+for entry in "${DOMAINS_TO_PROCESS[@]}"; do
+    d="${entry%%:*}"
+    s="${entry##*:}"
+    if [[ ! " ${FAILED[*]} " =~ " ${d} " ]]; then
+        echo "    ${d}  ->  ${s}"
+    fi
+done
 echo ""
 echo "Next steps:"
-echo "  1. Ensure these variables are set before running further scripts:"
+echo "  1. Set these variables before running further scripts:"
+echo ""
 echo "     export OSMO_TLS_ENABLED=true"
-echo "     export OSMO_INGRESS_HOSTNAME=${DOMAIN}"
+echo "     export OSMO_INGRESS_HOSTNAME=${MAIN_DOMAIN}"
+if [[ "$SETUP_KEYCLOAK" == "true" ]]; then
+    echo "     export DEPLOY_KEYCLOAK=true"
+    echo "     export KEYCLOAK_HOSTNAME=${AUTH_DOMAIN}"
+fi
 echo ""
 echo "  2. Run 04-deploy-osmo-control-plane.sh to deploy OSMO with TLS"
 echo ""
-echo "  3. Access OSMO at: https://${DOMAIN}"
+echo "  3. Access OSMO at: https://${MAIN_DOMAIN}"
 echo ""
 echo "Certificate renewal:"
 echo "  Certificates expire after 90 days. Run 03b-renew-tls-certificate.sh to renew."

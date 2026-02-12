@@ -58,6 +58,22 @@ if [[ "${OSMO_TLS_ENABLED:-false}" == "true" ]]; then
     )
 fi
 
+# When Keycloak auth is expected, increase proxy buffer sizes globally.
+# OAuth2/JWT cookies make response headers very large (>4KB). Without this,
+# NGINX returns 502 or "OAuth flow failed" because it truncates the headers.
+# NOTE: per-ingress annotations only support proxy-buffer-size and
+# proxy-buffers-number. The other settings (proxy-busy-buffers-size,
+# large-client-header-buffers) can ONLY be set via the ConfigMap.
+if [[ "${DEPLOY_KEYCLOAK:-false}" == "true" ]]; then
+    log_info "Keycloak auth expected: increasing NGINX proxy buffer sizes"
+    NGINX_HELM_ARGS+=(
+        --set-string controller.config.proxy-buffer-size="16k"
+        --set-string controller.config.proxy-buffers-number="8"
+        --set-string controller.config.proxy-busy-buffers-size="32k"
+        --set-string controller.config.large-client-header-buffers="4 16k"
+    )
+fi
+
 helm upgrade --install "${INGRESS_RELEASE_NAME}" ingress-nginx/ingress-nginx \
     "${NGINX_HELM_ARGS[@]}" \
     --wait --timeout 5m || {

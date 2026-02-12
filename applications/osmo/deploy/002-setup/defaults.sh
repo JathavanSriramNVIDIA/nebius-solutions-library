@@ -42,8 +42,14 @@ export OSMO_INGRESS_BASE_URL="${OSMO_INGRESS_BASE_URL:-}"
 # TLS / SSL Configuration
 # Set OSMO_TLS_ENABLED=true after running 03a (certbot) or 03c (cert-manager).
 export OSMO_TLS_ENABLED="${OSMO_TLS_ENABLED:-false}"
-# Name of the Kubernetes TLS secret used by Ingress (both paths produce this secret).
-# NOTE: The OSMO Helm chart generates ingress TLS with secretName "osmo-tls".
+#
+# IMPORTANT: Two separate TLS secrets are used when Keycloak is enabled:
+#   OSMO_TLS_SECRET_NAME      = cert for the MAIN domain (OSMO service/router/UI ingresses)
+#   KEYCLOAK_TLS_SECRET_NAME  = cert for the AUTH subdomain (Keycloak ingress)
+# The 03a script auto-detects which secret name to use based on the domain:
+#   auth-* domain  -> KEYCLOAK_TLS_SECRET_NAME (osmo-tls-auth)
+#   other domain   -> OSMO_TLS_SECRET_NAME     (osmo-tls)
+# You normally do NOT need to set OSMO_TLS_SECRET_NAME manually.
 export OSMO_TLS_SECRET_NAME="${OSMO_TLS_SECRET_NAME:-osmo-tls}"
 # Local directory where certbot stores certificate files (Path A only).
 export OSMO_TLS_CERT_DIR="${OSMO_TLS_CERT_DIR:-$HOME/.osmo-certs}"
@@ -62,8 +68,8 @@ export DEPLOY_KEYCLOAK="${DEPLOY_KEYCLOAK:-false}"
 # Keycloak hostname (e.g. auth-osmo-nebius.csptst.nvidia.com).
 # Auto-derived from OSMO_INGRESS_HOSTNAME if empty: auth-<OSMO_INGRESS_HOSTNAME>.
 export KEYCLOAK_HOSTNAME="${KEYCLOAK_HOSTNAME:-}"
-# TLS secret name for the Keycloak ingress (separate from the main osmo-tls).
-# Run 03a with OSMO_TLS_SECRET_NAME=osmo-tls-auth for the auth subdomain.
+# TLS secret for the Keycloak auth subdomain ingress (separate from OSMO_TLS_SECRET_NAME).
+# The 03a script auto-selects this when the domain starts with "auth-".
 export KEYCLOAK_TLS_SECRET_NAME="${KEYCLOAK_TLS_SECRET_NAME:-osmo-tls-auth}"
 
 # Paths
