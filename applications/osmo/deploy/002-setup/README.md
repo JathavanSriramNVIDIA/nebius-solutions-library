@@ -33,7 +33,10 @@ Run scripts in order:
 # 6. Configure Storage (requires port-forward, see main README)
 ./06-configure-storage.sh
 
-# 7. Configure GPU Platform (required for GPU workflows)
+# 7. (Optional) Register Nebius bucket as OSMO dataset bucket
+./10-configure-dataset-bucket.sh
+
+# 8. Configure GPU Platform (required for GPU workflows)
 ./08-configure-gpu-platform.sh
 ```
 
@@ -49,6 +52,8 @@ Run scripts in order:
 | `06-configure-storage.sh` | Configure S3-compatible storage for workflow logs/data | ~1 min |
 | `07-configure-service-url.sh` | Reconfigure service URL manually (usually not needed) | ~1 min |
 | `08-configure-gpu-platform.sh` | Configure GPU platform with tolerations/node selector | ~1 min |
+| `09-configure-backend-scheduler.sh` | Set BACKEND scheduler to KAI + coscheduling (gang scheduling) | ~1 min |
+| `10-configure-dataset-bucket.sh` | Register Nebius bucket as OSMO dataset bucket (for datasets/CLI) | ~1 min |
 
 ## Configuration
 
@@ -164,6 +169,50 @@ cd cleanup
 ./uninstall-gpu-infrastructure.sh
 ```
 
+## Configure OSMO Dataset Bucket (Optional)
+
+After configuring storage (06), you can register the Nebius bucket as an OSMO **dataset bucket**. This lets you use the bucket for OSMO datasets (e.g. `osmo dataset upload`, `osmo dataset list`) with a short name instead of full URIs.
+
+```bash
+./10-configure-dataset-bucket.sh
+```
+
+The script:
+
+- Reads the bucket name and endpoint from Terraform (001-iac).
+- Registers the bucket in OSMO DATASET config with `dataset_path` (TOS URI), `region`, `description`, and `mode: read-write`.
+- Sets it as the default dataset bucket so you can reference datasets without a bucket prefix.
+
+Example config that the script applies (conceptually):
+
+```json
+{
+  "buckets": {
+    "nebius": {
+      "dataset_path": "tos://storage.<region>.nebius.cloud/<bucket-name>",
+      "region": "eu-north1",
+      "description": "Nebius Object Storage bucket",
+      "mode": "read-write"
+    }
+  },
+  "default_bucket": "nebius"
+}
+```
+
+To use a different OSMO bucket name, set `DATASET_BUCKET_NAME` before running:
+
+```bash
+export DATASET_BUCKET_NAME="my-bucket"
+./10-configure-dataset-bucket.sh
+```
+
+Verify with `osmo bucket list` (with port-forward to OSMO). Then set your profile and use datasets:
+
+```bash
+osmo profile set bucket nebius
+osmo dataset upload my-dataset:latest ./data
+```
+
 ## Configure OSMO GPU Platform
 
 After deploying OSMO backend, configure the GPU platform so OSMO can schedule workloads on GPU nodes.
@@ -254,6 +303,25 @@ curl -s http://localhost:8080/api/configs/pool/default | jq '.platforms.gpu'
 # Check resources (GPU nodes should now be visible)
 curl -s http://localhost:8080/api/resources | jq '.resources[] | {name: .name, gpu: .allocatable_fields.gpu}'
 ```
+
+### Backend scheduler (KAI + coscheduling)
+
+After deploying the backend (05), the backend registers with default scheduler settings (`scheduler_type: default`, `coscheduling: false`). To use KAI Scheduler with coscheduling (gang scheduling) for workflow pods, run:
+
+```bash
+./09-configure-backend-scheduler.sh
+```
+
+This patches the existing BACKEND config so that `scheduler_settings` becomes `scheduler_type: kai`, `scheduler_name: kai-scheduler`, `coscheduling: true`, `scheduler_timeout: 30`. Your `router_address` and other fields are left unchanged.
+
+To apply from the template instead (e.g. to set `router_address` and `k8s_namespace` explicitly), set `ROUTER_ADDRESS` (e.g. `wss://your-osmo-host`) and run:
+
+```bash
+export ROUTER_ADDRESS="wss://your-osmo-host"
+./09-configure-backend-scheduler.sh --from-template
+```
+
+Template: `config/scheduler-config.template.json`. Verify with `osmo config show BACKEND default`.
 
 ### Using GPU in Workflows
 

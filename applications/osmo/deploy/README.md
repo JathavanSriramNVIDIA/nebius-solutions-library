@@ -80,7 +80,13 @@ cd 002-setup
 
 # 5. Deploy OSMO backend
 ./05-deploy-osmo-backend.sh
+
+# Optional: configure storage and register dataset bucket (see 002-setup/README.md for full order)
+# ./06-configure-storage.sh
+# ./10-configure-dataset-bucket.sh
 ```
+
+For the full sequence (storage, dataset bucket, GPU platform, backend scheduler), see [002-setup/README.md](002-setup/README.md).
 
 ## Directory Structure
 

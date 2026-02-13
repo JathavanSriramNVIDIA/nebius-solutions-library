@@ -1,0 +1,5 @@
+{"name":"${BACKEND_NAME}","k8s_namespace":"${K8S_NAMESPACE}",
+"router_address":"${ROUTER_ADDRESS}",
+"node_conditions":
+{"prefix":"","ignore_node_conditions":[],"additional_node_conditions":[]},"scheduler_settings":{"scheduler_type":"kai","scheduler_name":"kai-scheduler",
+"coscheduling":true,"scheduler_timeout":30}}

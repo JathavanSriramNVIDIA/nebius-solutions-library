@@ -325,6 +325,18 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    The Ingress LoadBalancer IP is shown in the output of `04-deploy-osmo-control-plane.sh`.
    You should see the backend configuration with status `ONLINE`.
 
+8b. **(Optional) Configure backend scheduler (KAI + coscheduling):**
+
+   By default the backend registers with `scheduler_type: default` and `coscheduling: false`. To use KAI Scheduler with coscheduling (gang scheduling) so that all pods in a workflow are scheduled together, run:
+
+   ```bash
+   ./09-configure-backend-scheduler.sh
+   ```
+
+   This patches the existing BACKEND config to set `scheduler_settings` to `scheduler_type: kai`, `scheduler_name: kai-scheduler`, `coscheduling: true`, and `scheduler_timeout: 30`. Your `router_address` and other backend fields are left unchanged. Requires the backend to be ONLINE (step 8) and `jq` installed.
+
+   Verify with `osmo config show BACKEND default`. See [Backend scheduler (KAI + coscheduling)](#backend-scheduler-kai--coscheduling) for the template-based option and details.
+
 9. Configure OSMO storage:
    ```bash
    ./06-configure-storage.sh
@@ -337,6 +349,16 @@ See [Terraform README](deploy/001-iac/README.md) for configuration options, and 
    - Verifies the configuration
    
    > **Note:** The `osmo-storage` secret (with S3 credentials) was created automatically by `04-deploy-osmo-control-plane.sh`.
+
+9b. **(Optional) Register Nebius bucket as OSMO dataset bucket:**
+
+   To use the same bucket for OSMO datasets (e.g. `osmo dataset upload`, `osmo dataset list`) with a short name instead of full URIs, run:
+
+   ```bash
+   ./10-configure-dataset-bucket.sh
+   ```
+
+   This registers the bucket in OSMO DATASET config (with `dataset_path`, `region`, `description`, `mode: read-write`) and sets it as the default. Verify with `osmo bucket list` (with port-forward). See [Setup Scripts](deploy/002-setup/README.md#configure-osmo-dataset-bucket-optional) for details and the `DATASET_BUCKET_NAME` override.
 
 10. Access OSMO (via NGINX Ingress LoadBalancer):
    
@@ -486,6 +508,51 @@ See `deploy/001-iac/terraform.tfvars.*.example` files for all configuration opti
 | `gpu-b300-sxm` | `8gpu-192vcpu-2768gb` | 8 | 192 | 2768GB | Yes | uk-south1 |
 
 **Recommendation:** Use `gpu-l40s-a` for development/testing in eu-north1 (cheapest option).
+
+## Backend scheduler (KAI + coscheduling)
+
+The OSMO backend operator registers with the control plane and reports its scheduler settings. By default it uses `scheduler_type: default` and `coscheduling: false`. For workflows that should schedule all pods together (gang scheduling) via [KAI Scheduler](https://github.com/NVIDIA/KAI-Scheduler), you can apply a BACKEND config that sets:
+
+- `scheduler_type`: `kai`
+- `scheduler_name`: `kai-scheduler`
+- `coscheduling`: `true`
+- `scheduler_timeout`: `30`
+
+KAI Scheduler is deployed by `01-deploy-gpu-infrastructure.sh`; this step only updates the BACKEND config so the control plane uses it when creating workflow pods.
+
+### Apply via script (recommended)
+
+After the backend is deployed and ONLINE:
+
+```bash
+cd deploy/002-setup
+./09-configure-backend-scheduler.sh
+```
+
+The script starts a port-forward, fetches the current BACKEND config from the API, patches `scheduler_settings` to KAI + coscheduling, and runs `osmo config update BACKEND default`. Your existing `router_address`, `k8s_namespace`, and other fields are preserved. Requires `jq`.
+
+### Apply from template
+
+To set the full backend config (including `router_address` and `k8s_namespace`) from the template:
+
+1. Set the WebSocket URL your backend uses to reach the control plane (same host as your OSMO ingress, with `wss://`):
+   ```bash
+   export ROUTER_ADDRESS="wss://your-osmo-host"
+   ```
+2. Run with `--from-template`:
+   ```bash
+   ./09-configure-backend-scheduler.sh --from-template
+   ```
+
+The template is `deploy/002-setup/config/scheduler-config.template.json`. Variables `BACKEND_NAME` and `K8S_NAMESPACE` (default `osmo-workflows`) are also substituted if set.
+
+### Verify
+
+```bash
+osmo config show BACKEND default
+```
+
+Check that `scheduler_settings` shows `scheduler_type: kai`, `scheduler_name: kai-scheduler`, and `coscheduling: true`.
 
 ## Required Permissions
 
