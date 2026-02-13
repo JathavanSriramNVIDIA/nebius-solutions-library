@@ -52,12 +52,13 @@ if [[ "$S3_ENDPOINT" =~ storage\.([a-z0-9-]+)\.nebius\.cloud ]]; then
 fi
 # Boto3 validates region_name as a DNS-style name; "eu-north1" can fail with "region was not a valid DNS name".
 # Use a standard AWS region string in the bucket config; the actual endpoint is in dataset_path.
-S3_REGION_FOR_BOTO="eu-north1"
+# Nebius Object Storage accepts "us-east-1" for SigV4 signing; the real endpoint is in dataset_path.
+S3_REGION_FOR_BOTO="us-east-1"
 
 # OSMO uses TOS scheme for S3-compatible storage: tos://<host>/<bucket>/<path>
 # Datasets are stored under the osmo-datasets prefix within the bucket
 S3_HOST="${S3_ENDPOINT#https://}"
-DATASET_PATH="tos://${S3_HOST}/${S3_BUCKET}/osmo-datasets"
+DATASET_PATH="s3://${S3_HOST}/${S3_BUCKET}/osmo-datasets"
 
 # -----------------------------------------------------------------------------
 # Get storage credentials (for default_credential on the dataset bucket)

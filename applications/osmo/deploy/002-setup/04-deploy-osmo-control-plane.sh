@@ -1245,6 +1245,15 @@ fi)
       # Disable built-in OTEL metrics exporter (no collector at localhost:12345)
       - name: METRICS_OTEL_ENABLE
         value: "false"
+      # S3-compatible storage endpoint (Nebius Object Storage)
+      - name: AWS_ENDPOINT_URL_S3
+        value: https://storage.eu-north1.nebius.cloud:443
+      - name: AWS_S3_FORCE_PATH_STYLE
+        value: "true"
+      - name: AWS_DEFAULT_REGION
+        value: eu-north1
+      - name: OSMO_SKIP_DATA_AUTH
+        value: "1"
     # MEK volume mount
     extraVolumes:
       - name: vault-secrets
@@ -1277,6 +1286,13 @@ fi)
       # Disable built-in OTEL metrics exporter (no collector at localhost:12345)
       - name: METRICS_OTEL_ENABLE
         value: "false"
+      # S3-compatible storage endpoint (Nebius Object Storage)
+      - name: AWS_ENDPOINT_URL_S3
+        value: https://storage.eu-north1.nebius.cloud:443
+      - name: AWS_S3_FORCE_PATH_STYLE
+        value: "true"
+      - name: AWS_DEFAULT_REGION
+        value: eu-north1
     extraVolumes:
       - name: vault-secrets
         secret:
