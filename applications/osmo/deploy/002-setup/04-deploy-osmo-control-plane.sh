@@ -93,12 +93,48 @@ log_info "Using Nebius Managed PostgreSQL..."
 log_success "Database: ${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 
 # -----------------------------------------------------------------------------
+# Select Nebius Region
+# -----------------------------------------------------------------------------
+VALID_REGIONS=("eu-north1" "me-west1")
+
+if [[ -n "${NEBIUS_REGION:-}" ]]; then
+    NEBIUS_SELECTED_REGION="$NEBIUS_REGION"
+    matched=false
+    for r in "${VALID_REGIONS[@]}"; do
+        [[ "$r" == "$NEBIUS_SELECTED_REGION" ]] && matched=true && break
+    done
+    if ! $matched; then
+        log_error "Invalid NEBIUS_REGION '${NEBIUS_SELECTED_REGION}'. Valid options: ${VALID_REGIONS[*]}"
+        exit 1
+    fi
+    log_info "Using region from NEBIUS_REGION: ${NEBIUS_SELECTED_REGION}"
+else
+    echo "Select the Nebius region for storage:"
+    echo ""
+    for i in "${!VALID_REGIONS[@]}"; do
+        echo "  $((i + 1))) ${VALID_REGIONS[$i]}"
+    done
+    echo ""
+    while true; do
+        read -rp "Enter choice [1-${#VALID_REGIONS[@]}]: " choice
+        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#VALID_REGIONS[@]} )); then
+            NEBIUS_SELECTED_REGION="${VALID_REGIONS[$((choice - 1))]}"
+            break
+        fi
+        echo "Invalid selection. Please enter a number between 1 and ${#VALID_REGIONS[@]}."
+    done
+    log_info "Selected region: ${NEBIUS_SELECTED_REGION}"
+fi
+
+S3_NEBIUS_ENDPOINT="https://storage.${NEBIUS_SELECTED_REGION}.nebius.cloud"
+
+# -----------------------------------------------------------------------------
 # Get Storage Configuration
 # -----------------------------------------------------------------------------
 log_info "Retrieving storage configuration..."
 
 S3_BUCKET=$(get_tf_output "storage_bucket.name" "../001-iac" || echo "")
-S3_ENDPOINT=$(get_tf_output "storage_bucket.endpoint" "../001-iac" || echo "https://storage.eu-north1.nebius.cloud")
+S3_ENDPOINT=$(get_tf_output "storage_bucket.endpoint" "../001-iac" || echo "${S3_NEBIUS_ENDPOINT}")
 S3_ACCESS_KEY=$(get_tf_output "storage_credentials.access_key_id" "../001-iac" || echo "")
 
 # Secret access key is stored in MysteryBox (ephemeral, not in Terraform state)
@@ -1247,11 +1283,11 @@ fi)
         value: "false"
       # S3-compatible storage endpoint (Nebius Object Storage)
       - name: AWS_ENDPOINT_URL_S3
-        value: https://storage.eu-north1.nebius.cloud:443
+        value: ${S3_NEBIUS_ENDPOINT}:443
       - name: AWS_S3_FORCE_PATH_STYLE
         value: "true"
       - name: AWS_DEFAULT_REGION
-        value: eu-north1
+        value: ${NEBIUS_SELECTED_REGION}
       - name: OSMO_SKIP_DATA_AUTH
         value: "1"
     # MEK volume mount
@@ -1288,11 +1324,11 @@ fi)
         value: "false"
       # S3-compatible storage endpoint (Nebius Object Storage)
       - name: AWS_ENDPOINT_URL_S3
-        value: https://storage.eu-north1.nebius.cloud:443
+        value: ${S3_NEBIUS_ENDPOINT}:443
       - name: AWS_S3_FORCE_PATH_STYLE
         value: "true"
       - name: AWS_DEFAULT_REGION
-        value: eu-north1
+        value: ${NEBIUS_SELECTED_REGION}
     extraVolumes:
       - name: vault-secrets
         secret:
