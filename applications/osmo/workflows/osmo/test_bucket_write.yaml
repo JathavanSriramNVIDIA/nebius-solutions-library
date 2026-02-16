@@ -19,7 +19,7 @@
 # Submit: osmo workflow submit workflows/osmo/test_bucket_write.yaml
 
 workflow:
-  name: test-bucket-write2
+  name: test-bucket-write4
   resources:
     default:
       platform: gpu
@@ -33,7 +33,7 @@ workflow:
     command: ["bash", "-c"]
     args:
     - |
-      echo "OSMO default bucket test at $(date -Iseconds)" > {{output}}/test.txt
+      echo "OSMO default bucket test at MEOW $(date -Iseconds)" > {{output}}/test.txt
       echo "Wrote test.txt to task output (will be uploaded to default bucket)"
       cat {{output}}/test.txt
       echo "Spinning for 10 seconds before stopping..."
@@ -41,4 +41,4 @@ workflow:
       echo "Done."
     outputs:
     - dataset:
-        name: mydataset3
+        name: datasetv004

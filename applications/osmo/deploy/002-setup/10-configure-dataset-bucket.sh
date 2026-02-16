@@ -27,6 +27,42 @@ DATASET_BUCKET_NAME="${DATASET_BUCKET_NAME:-nebius}"
 check_kubectl || exit 1
 
 # -----------------------------------------------------------------------------
+# Select Nebius Region
+# -----------------------------------------------------------------------------
+VALID_REGIONS=("eu-north1" "me-west1")
+
+if [[ -n "${NEBIUS_REGION:-}" ]]; then
+    REGION="$NEBIUS_REGION"
+    matched=false
+    for r in "${VALID_REGIONS[@]}"; do
+        [[ "$r" == "$REGION" ]] && matched=true && break
+    done
+    if ! $matched; then
+        log_error "Invalid NEBIUS_REGION '${REGION}'. Valid options: ${VALID_REGIONS[*]}"
+        exit 1
+    fi
+    log_info "Using region from NEBIUS_REGION: ${REGION}"
+else
+    echo "Select the Nebius region for the storage bucket:"
+    echo ""
+    for i in "${!VALID_REGIONS[@]}"; do
+        echo "  $((i + 1))) ${VALID_REGIONS[$i]}"
+    done
+    echo ""
+    while true; do
+        read -rp "Enter choice [1-${#VALID_REGIONS[@]}]: " choice
+        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#VALID_REGIONS[@]} )); then
+            REGION="${VALID_REGIONS[$((choice - 1))]}"
+            break
+        fi
+        echo "Invalid selection. Please enter a number between 1 and ${#VALID_REGIONS[@]}."
+    done
+    log_info "Selected region: ${REGION}"
+fi
+
+S3_REGION_FOR_BOTO="${REGION}"
+
+# -----------------------------------------------------------------------------
 # Get Storage Configuration from Terraform
 # -----------------------------------------------------------------------------
 log_info "Retrieving storage configuration from Terraform..."
@@ -35,7 +71,7 @@ S3_BUCKET=$(get_tf_output "storage_bucket.name" "../001-iac" 2>/dev/null || echo
 S3_ENDPOINT=$(get_tf_output "storage_bucket.endpoint" "../001-iac" 2>/dev/null || echo "")
 
 if [[ -z "$S3_ENDPOINT" ]]; then
-    S3_ENDPOINT="https://storage.eu-north1.nebius.cloud"
+    S3_ENDPOINT="https://storage.${REGION}.nebius.cloud"
 fi
 
 if [[ -z "$S3_BUCKET" ]]; then
@@ -45,20 +81,10 @@ if [[ -z "$S3_BUCKET" ]]; then
     exit 1
 fi
 
-# Derive Nebius region from endpoint (e.g. https://storage.eu-north1.nebius.cloud -> eu-north1)
-REGION="eu-north1"
-if [[ "$S3_ENDPOINT" =~ storage\.([a-z0-9-]+)\.nebius\.cloud ]]; then
-    REGION="${BASH_REMATCH[1]}"
-fi
-# Boto3 validates region_name as a DNS-style name; "eu-north1" can fail with "region was not a valid DNS name".
-# Use a standard AWS region string in the bucket config; the actual endpoint is in dataset_path.
-# Nebius Object Storage accepts "us-east-1" for SigV4 signing; the real endpoint is in dataset_path.
-S3_REGION_FOR_BOTO="us-east-1"
-
-# OSMO uses TOS scheme for S3-compatible storage: tos://<host>/<bucket>/<path>
-# Datasets are stored under the osmo-datasets prefix within the bucket
-S3_HOST="${S3_ENDPOINT#https://}"
-DATASET_PATH="s3://${S3_HOST}/${S3_BUCKET}/osmo-datasets"
+# Datasets are stored under the osmo-datasets prefix within the bucket.
+# The path uses the standard s3://<bucket>/<prefix> format; the actual endpoint
+# is configured separately via AWS_ENDPOINT_URL_S3 in the Helm chart / pod template.
+DATASET_PATH="s3://${S3_BUCKET}/osmo-datasets"
 
 # -----------------------------------------------------------------------------
 # Get storage credentials (for default_credential on the dataset bucket)
@@ -86,7 +112,8 @@ fi
 
 log_success "Bucket: ${S3_BUCKET}"
 log_success "Dataset path: ${DATASET_PATH}"
-log_success "Region: ${REGION} (config uses ${S3_REGION_FOR_BOTO} for boto3 compatibility)"
+log_success "Region: ${REGION}"
+log_success "S3 endpoint: ${S3_ENDPOINT}"
 log_success "OSMO bucket name: ${DATASET_BUCKET_NAME}"
 
 # -----------------------------------------------------------------------------
